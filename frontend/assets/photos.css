@@ -1,0 +1,108 @@
+:root{
+  --yellow:#fff3b8;
+  --yellow2:#fff8d8;
+  --blue:#8fb3df;
+  --brown:#5b3a29;
+  --cream:#fffdf8;
+  --line:#eadfbd;
+  --ok:#2f8f5b;
+  --err:#b84a4a;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+  background:linear-gradient(180deg,var(--yellow2),#fffdf5);
+  color:var(--brown);
+  min-height:100vh;
+}
+.wrap{width:min(720px,100%);margin:0 auto;padding:24px 18px 44px}
+.card{
+  background:rgba(255,255,255,.92);
+  border:1px solid var(--line);
+  border-radius:28px;
+  padding:26px 20px;
+  box-shadow:0 12px 32px rgba(91,58,41,.08);
+}
+.hero{text-align:center}
+.emoji{font-size:48px}
+h1{margin:10px 0 8px;font-size:30px}
+.sub{line-height:1.7;opacity:.82}
+.pick{
+  display:block;
+  margin-top:22px;
+  border:2px dashed #d9c989;
+  border-radius:22px;
+  padding:26px 16px;
+  text-align:center;
+  background:#fffdf4;
+  cursor:pointer;
+}
+input[type=file]{display:none}
+.btn{
+  border:0;
+  border-radius:999px;
+  padding:14px 20px;
+  font-size:17px;
+  font-weight:700;
+  cursor:pointer;
+}
+.pick .btn{display:inline-block;background:var(--yellow);color:var(--brown)}
+#uploadBtn{width:100%;margin-top:18px;background:var(--blue);color:#fff}
+#uploadBtn:disabled{opacity:.45;cursor:not-allowed}
+.meta{margin-top:10px;font-size:14px;opacity:.7}
+.count{
+  margin-top:14px;
+  padding:10px 12px;
+  border-radius:14px;
+  background:#fff8dd;
+  text-align:center;
+  font-size:14px;
+  display:none;
+}
+.preview{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-top:16px;
+}
+.preview img{
+  width:100%;
+  aspect-ratio:1;
+  object-fit:cover;
+  border-radius:14px;
+  border:1px solid var(--line);
+}
+.progressWrap{display:none;margin-top:18px}
+.progressTrack{
+  height:14px;
+  background:#eee4c9;
+  border-radius:999px;
+  overflow:hidden;
+}
+.progressBar{
+  height:100%;
+  width:0%;
+  background:var(--blue);
+  transition:width .18s ease;
+}
+.progressText{text-align:center;margin-top:8px;font-weight:700}
+.batchText{text-align:center;margin-top:4px;font-size:13px;opacity:.7}
+.status{
+  margin-top:16px;
+  padding:14px 16px;
+  border-radius:16px;
+  display:none;
+  line-height:1.55;
+}
+.status.show{display:block}
+.status.ok{background:#edf8f1;color:var(--ok)}
+.status.err{background:#fff0f0;color:var(--err)}
+.status.info{background:#eef5ff;color:#345f95}
+.privacy{
+  font-size:13px;
+  opacity:.66;
+  margin-top:18px;
+  line-height:1.65;
+  text-align:center;
+}

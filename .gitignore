@@ -1,0 +1,15 @@
+cat >> .gitignore <<'EOF'
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+!.env.example
+credentials.json
+token.json
+data/
+data-backup*/
+models/
+EOF

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>找到照片裡的你</title>
+<link rel="stylesheet" href="assets/people.css"></head><body><main>
+<div class="actions"><a href="photos.html">← 上傳照片</a><button id="refresh" type="button">重新整理</button></div>
+<a data-all-photos href="#" target="_blank" rel="noopener" aria-disabled="true" style="display:inline-block;margin:12px 8px;padding:12px 18px;background:#e5efff;border-radius:24px;color:#305880;font-weight:700">🖼️ 看全部照片 ↗ Google Drive</a><header><div style="font-size:44px">🔎💛</div><h1>找到照片裡的你</h1><div class="note">點你的大頭貼，看看婚禮裡的精彩瞬間。<br>沒看到自己？也可以用自拍找照片。</div></header>
+<section class="card"><h2>照片裡的大家</h2><div class="note">新照片分析完成後，大頭貼與相簿會自動更新。</div><div id="queue" class="status" role="status"></div><div id="people" class="people"></div><div id="empty" class="empty" hidden>還沒有大頭貼，先上傳婚禮照片吧 📸</div></section>
+<section class="card"><h2>用自拍找自己</h2><div class="note">選一張清楚的單人照，或用手機拍一張自拍。</div><input id="selfie" type="file" accept="image/*,.heic,.heif"><br><img id="queryPreview" alt="選擇的自拍預覽"><div class="actions"><button id="search" class="blue" disabled>找我的照片</button><label class="button" for="camera">拍一張自拍</label><input id="camera" type="file" accept="image/*" capture="user" hidden></div><div id="searchStatus" class="status" role="status"></div></section>
+<section id="results" class="card" hidden><h2 id="viewTitle"></h2><div class="note" id="resultNote"></div><div id="photos" class="photos"></div></section>
+<p style="text-align:center;color:#776b60;font-size:12px">婚禮照片 · v4.1.0</p></main><script src="config.js"></script><script src="assets/api-client.js"></script><script src="assets/gallery-link.js"></script><script src="assets/people.js"></script></body></html>

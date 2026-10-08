@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>上傳婚禮照片</title>
+<link rel="stylesheet" href="assets/photos.css">
+</head>
+<body>
+<main class="wrap">
+<section class="card">
+  <a href="people.html" style="color:#426d9e">🔎 查看人物相簿・找自己的照片</a>
+  <a data-all-photos href="#" target="_blank" rel="noopener" aria-disabled="true" style="display:inline-block;margin:12px 8px;padding:12px 18px;background:#e5efff;border-radius:24px;color:#305880;font-weight:700">🖼️ 看全部照片 ↗ Google Drive</a>
+  <div class="hero">
+    <div class="emoji">📸💛</div>
+    <h1>把你拍到的照片傳給我們</h1>
+    <div class="sub">
+      自拍、合照、奇怪瞬間，都歡迎上傳！<br>
+      一次最多可選 20 張。
+    </div>
+  </div>
+
+  <label class="pick" for="photos">
+    <span class="btn">＋ 選擇照片</span>
+    <div class="meta">最多 20 張｜系統會自動分批上傳</div>
+  </label>
+
+  <input id="photos" type="file" accept="image/*,.heic,.heif" multiple>
+
+  <div id="count" class="count"></div>
+  <div id="preview" class="preview"></div>
+
+  <button id="uploadBtn" class="btn" disabled>
+    上傳給新郎新娘 💛
+  </button>
+
+  <div id="progressWrap" class="progressWrap">
+    <div class="progressTrack">
+      <div id="progressBar" class="progressBar"></div>
+    </div>
+    <div id="progressText" class="progressText">0%</div>
+    <div id="batchText" class="batchText"></div>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <div class="privacy">
+    不需要登入 Google、Email 或 LINE 帳號。<br>
+    照片會先安全存好，再備份到新人的 Google Drive。<br>上傳後會自動整理人物相簿，開放賓客查看與下載。
+  </div>
+</section>
+<p style="text-align:center;color:#776b60;font-size:12px">婚禮照片 · v4.1.0</p></main>
+
+<script src="config.js"></script><script src="assets/api-client.js"></script><script src="assets/gallery-link.js"></script><script src="assets/backup-message.js"></script><script src="assets/photos.js"></script>
+</body>
+</html>

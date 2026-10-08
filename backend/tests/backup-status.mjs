@@ -1,0 +1,32 @@
+import {createRequire} from 'node:module';import vm from 'node:vm';
+import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
+import os from 'node:os';import path from 'node:path';import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
+const require=createRequire(import.meta.url),root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const data=await mkdtemp(path.join(os.tmpdir(),'wedding-backup-'));
+process.env.DATA_DIR=data;process.env.DRIVE_ENABLED='false';process.env.GOOGLE_DRIVE_FOLDER_ID='SourceRoot';process.env.GOOGLE_DRIVE_UPLOAD_FOLDER_ID='OriginalChild';
+for(const d of ['jobs','originals'])await mkdir(path.join(data,d));
+const {app,persistPhoto,driveSync,backupPhoto}=require('../server');
+const server=app.listen(0);await new Promise(r=>server.once('listening',r));const base='http://127.0.0.1:'+server.address().port;
+const temp=path.join(data,'input.jpg');await writeFile(temp,'photo-bytes');
+try{
+ const result=await persistPhoto({path:temp,originalname:'photo.jpg',mimetype:'image/jpeg'});
+ const url=base+'/api/photos/status?ids='+result.id;
+ let status=await (await fetch(url)).json();assert.equal(status.files[0].status,'disabled');assert.equal(status.driveEnabled,false);
+ const fake={files:{async list(p){assert(p.q.includes("'OriginalChild' in parents"));return {data:{files:[]}};},async create(p,o){assert.deepEqual(p.requestBody.parents,['OriginalChild']);assert.equal(o.timeout,180000);p.media.body.destroy();return {data:{id:'remote-id',md5Checksum:'fake-checksum'}};}}};
+ await backupPhoto(result.id,fake);status=await (await fetch(url)).json();assert.equal(status.files[0].status,'done');assert.equal(status.files[0].message,null);
+ const job=JSON.parse(await readFile(path.join(data,'jobs',result.id+'.json'),'utf8'));assert.equal(job.drive.id,'remote-id');
+ const denied={files:{async list(){const e=new Error('Permission denied');e.code=403;throw e;}}};
+ await backupPhoto(result.id,denied);status=await (await fetch(url)).json();assert.equal(status.files[0].status,'pending');assert.match(status.files[0].message,/權限不足/);
+ const health=await (await fetch(base+'/api/health')).json();assert.equal(health.driveEnabled,false);assert.equal(health.backupFailed,1);assert.equal(health.service,'wedding-photo-people');assert(health.version);
+ assert.match(driveSync.status().folderUrl,/SourceRoot/);
+ assert.equal((await fetch(base+'/api/photos/status?ids=not-valid')).status,400);
+ const context={window:{}};vm.runInNewContext(await readFile(path.resolve(root,'../frontend/assets/backup-message.js'),'utf8'),context);
+ const describe=context.window.BackupView.describe;
+ assert.notEqual(describe({driveEnabled:true,connectionState:'ready',files:[{status:'pending'}]}).type,'ok');
+ assert.notEqual(describe({driveEnabled:false,files:[{status:'disabled'}]}).type,'ok');
+ assert.notEqual(describe({driveEnabled:true,connectionState:'failed',files:[{status:'pending'}]}).type,'ok');
+ assert.equal(describe({driveEnabled:true,connectionState:'ready',files:[{status:'done'}]}).type,'ok');
+ assert.equal(describe({driveEnabled:true,connectionState:'ready',files:[{status:'pending',message:'權限不足'}]}).type,'err');
+ console.log('PASS: real persisted job status, cloud completion only after backup, failure reason, disabled mode, API service/version, separate import/upload folder, configured target parent, pending never shown as cloud success. Google API mocked.');
+}finally{await new Promise(r=>server.close(r));await rm(data,{recursive:true,force:true});}
