@@ -1,5 +1,9 @@
 # 前端交接
 
+整個專案開發時，在專案根目錄執行 `pnpm install`，再執行 `pnpm dev`，即可同時啟動前端、Node API 與 Python 人臉服務。第一次需先安裝 uv；詳細設定見根目錄 README。
+
+只啟動前端時，可以從根目錄執行 `pnpm --filter @wedding/frontend dev`，或使用下方方式。
+
 用 Node 22+ 啟動：
 
 ```bash

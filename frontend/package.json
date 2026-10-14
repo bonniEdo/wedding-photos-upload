@@ -1,0 +1,11 @@
+{
+  "name": "@wedding/frontend",
+  "version": "4.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node dev-server.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

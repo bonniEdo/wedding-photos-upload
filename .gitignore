@@ -1,5 +1,5 @@
-cat >> .gitignore <<'EOF'
 node_modules/
+.turbo/
 .venv/
 __pycache__/
 *.pyc
@@ -12,4 +12,3 @@ token.json
 data/
 data-backup*/
 models/
-EOF

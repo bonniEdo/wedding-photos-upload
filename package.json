@@ -1,0 +1,17 @@
+{
+  "name": "wedding-photo-system",
+  "version": "4.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm setup:face && turbo run dev dev:face --env-mode=loose --ui=stream",
+    "dev:face": "uv run --project backend --locked uvicorn app:app --app-dir backend/face-service --host 127.0.0.1 --port 5001 --workers 1",
+    "setup:face": "uv run --project backend --locked python backend/face-service/download_models.py"
+  },
+  "devDependencies": {
+    "turbo": "2.11.7"
+  }
+}

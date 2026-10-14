@@ -5,6 +5,7 @@
   "description": "Wedding guest photo uploader to Google Drive",
   "main": "server.js",
   "scripts": {
+    "dev": "node dev-server.js",
     "start": "node server.js"
   },
   "dependencies": {

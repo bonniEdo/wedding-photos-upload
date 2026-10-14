@@ -353,4 +353,4 @@ async function main() {
   }).catch(e=>{driveConnectionState='failed';driveConnectionError=driveErrorMessage(e);console.error('Google 授權失敗，照片已保存在本機。修正授權後重啟即可繼續備份：',e.message);});
 }
 if(require.main===module)main().catch(e=>{console.error(e);process.exit(1);});
-module.exports={app,persistPhoto,driveSync,cleanupOriginals,streamOriginal,backupPhoto:(id,client)=>backup(jobs.get(id),client)};
+module.exports={app,main,persistPhoto,driveSync,cleanupOriginals,streamOriginal,backupPhoto:(id,client)=>backup(jobs.get(id),client)};

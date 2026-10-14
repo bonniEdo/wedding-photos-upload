@@ -2,6 +2,29 @@
 
 版本 **4.1.0**。不用 DB；Google Drive 保存原圖，本機保存人物索引、大頭貼與預覽。賓客上傳、攝影師雲端匯入共用人物相簿。前後端分離。
 
+## 一個指令啟動開發環境
+
+需要 Node 22+、pnpm 11.3.0、[uv](https://docs.astral.sh/uv/getting-started/installation/) 與 Python 3.10+。在專案根目錄執行：
+
+```bash
+pnpm install
+pnpm dev
+```
+
+`pnpm install` 安裝 pnpm 工作區的 Node 依賴；`pnpm dev` 先由 uv 依 `backend/uv.lock` 準備 `backend/.venv`，下載缺少的 YuNet / SFace 模型，再由 Turborepo 同時啟動三個服務：
+
+| 服務 | 網址 |
+| --- | --- |
+| 前端 | <http://localhost:5173/photos.html> |
+| Node API | <http://localhost:3000/api/health> |
+| Python 人臉服務（僅本機） | <http://127.0.0.1:5001/health> |
+
+人物頁：<http://localhost:5173/people.html>；管理頁：<http://localhost:5173/admin-people.html>。第一次需要網路安裝 Python 依賴與下載模型，之後沿用本機檔案。不必手動啟用虛擬環境，也不必開三個 Terminal。按 **Ctrl+C** 一起停止；任一服務啟動失敗時，Turborepo 也會停止其他服務並顯示錯誤。
+
+未設定 Google Drive 資料夾且未指定 `DRIVE_ENABLED` 時，Node **開發模式**先關閉雲端備份，照片存於本機；人物相簿與自拍搜尋仍可使用。要啟用 Drive，依下方說明設定 `backend/.env`、OAuth 憑證後重啟。開發啟動保留 `.env` 與外部環境變數；Node 和 Python 仍共用原本的 `DATA_DIR`。只在本機測試時，也可明確設定 `DRIVE_ENABLED=false`。
+
+`pnpm setup:face` 可單獨準備 Python 環境與模型。下方分別啟動三個服務的方式仍可用；`backend` 的 `npm start` 維持原本的正式啟動行為。
+
 ## 4.1.0 更新重點
 
 - 每次主動上傳都建立新照片，內容相同也接受；同一次上傳的網路自動重試使用固定識別碼，避免重試重複建立。
