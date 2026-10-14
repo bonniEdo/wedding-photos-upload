@@ -1,5 +1,6 @@
 from pathlib import Path
-from urllib.request import urlretrieve
+from urllib.request import urlopen
+import shutil, uuid
 BASE = Path(__file__).resolve().parent.parent
 MODELS = BASE / 'models'
 MODELS.mkdir(exist_ok=True)
@@ -12,5 +13,11 @@ for name,url in files.items():
     if target.exists():
         print('exists:', target); continue
     print('downloading:', name)
-    urlretrieve(url,target)
+    temp = target.with_name(target.name + '.' + uuid.uuid4().hex + '.part')
+    try:
+        with urlopen(url, timeout=120) as response, temp.open('xb') as output:
+            shutil.copyfileobj(response, output)
+        temp.replace(target)
+    finally:
+        temp.unlink(missing_ok=True)
     print('saved:', target)
