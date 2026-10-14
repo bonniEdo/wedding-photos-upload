@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm setup:face && turbo run dev dev:face --env-mode=loose --ui=stream",
     "dev:face": "uv run --project backend --locked uvicorn app:app --app-dir backend/face-service --host 127.0.0.1 --port 5001 --workers 1",
+    "import:photos": "uv run --project backend --locked python backend/face-service/import_photos.py",
     "setup:face": "uv run --project backend --locked python backend/face-service/download_models.py"
   },
   "devDependencies": {

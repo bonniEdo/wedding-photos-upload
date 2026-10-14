@@ -25,6 +25,19 @@ pnpm dev
 
 `pnpm setup:face` 可單獨準備 Python 環境與模型。下方分別啟動三個服務的方式仍可用；`backend` 的 `npm start` 維持原本的正式啟動行為。
 
+### 本機資料夾的照片加入分析
+
+照片複製完成後，先在執行 `pnpm dev` 的 Terminal 按 **Ctrl+C**，再於專案根目錄執行：
+
+```bash
+pnpm import:photos
+pnpm dev
+```
+
+省略資料夾時，匯入工具掃描 `DATA_DIR/originals`（預設 `backend/data/originals`），為尚未登記的照片建立分析任務，沿用現有原圖，不改名、不另複製一份。支援子資料夾、JPG / PNG / WebP / HEIC / HEIF；已登記的檔案與相同內容會跳過。重新啟動後，Python 背景逐張分析，可在 <http://localhost:5173/people.html> 查看進度。
+
+要匯入其他資料夾，執行 `pnpm import:photos /你的照片資料夾`；這些原圖會複製到系統的 `originals`。`DRIVE_ENABLED=false` 時不排入雲端備份。Node 需停止再匯入，才能在重啟時載入新任務；不要刪除既有 `face_index.json`。
+
 ## 4.1.0 更新重點
 
 - 每次主動上傳都建立新照片，內容相同也接受；同一次上傳的網路自動重試使用固定識別碼，避免重試重複建立。
