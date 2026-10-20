@@ -7,6 +7,7 @@
   <meta name="description" content="把幸福的日子，留給最重要的你。查看婚宴資訊，留下出席回覆與給新人的祝福。">
   <title>我們結婚了｜電子喜帖</title>
   <link rel="stylesheet" href="assets/invitation.css">
+  <link rel="stylesheet" href="assets/invitation-book.css">
 </head>
 <body>
   <a class="skip-link" href="#rsvp">跳到出席回覆</a>
@@ -16,65 +17,70 @@
   </header>
 
   <main>
-    <section class="hero page-width" id="invitation" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="tiny-flower" aria-hidden="true">✳</span> A LITTLE INVITATION, A LOT OF LOVE</p>
-        <p class="script-line">Together, with you.</p>
-        <h1 id="hero-title">往後的每一天，<br>都想與你<span>分享。</span></h1>
-        <p class="hero-description">我們要結婚了！<br>這一次，想邀請你坐在幸福的第一排，<br>一起吃飯、聊天，見證我們的新篇章。</p>
-        <a class="button button-primary" href="#rsvp">把這一天留給我們 <span aria-hidden="true">↗</span></a>
-        <p class="hero-footnote"><span class="short-line" aria-hidden="true"></span> 最好的日子，要有最重要的你。</p>
-      </div>
-      <div class="hero-art" aria-label="花草環繞的紙本喜帖插畫">
-        <span class="art-caption">WITH OUR FAVORITE PEOPLE</span>
-        <div class="invitation-paper">
-          <div class="paper-border"></div>
-          <img class="botanical botanical-left" src="assets/invitation-botanical.svg" alt="" width="240" height="440">
-          <img class="botanical botanical-right" src="assets/invitation-botanical.svg" alt="" width="240" height="440">
-          <div class="paper-content"><span class="paper-kicker">THE WEDDING OF</span><p class="paper-names" data-couple>子謙 & 以安</p><div class="paper-title">我們<br>結婚了<span class="paper-heart" aria-hidden="true">♡</span></div><p class="paper-english">a lifetime of little moments</p><div class="paper-date" data-short-date>2027.05.22</div><span class="paper-bottom">誠摯邀請・與你同慶</span></div>
-        </div>
-        <span class="wax-seal" aria-hidden="true">囍</span>
-        <span class="art-note">a new chapter, with you.</span>
-      </div>
-    </section>
+    <div class="book-journey" id="invitation-book" aria-label="我們的婚禮喜帖">
+      <div class="book-stage">
+        <section class="hero book-page book-cover" data-book-page="0" id="invitation" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="tiny-flower" aria-hidden="true">✳</span> A LITTLE INVITATION, A LOT OF LOVE</p>
+            <p class="script-line">Together, with you.</p>
+            <h1 id="hero-title" tabindex="-1">往後的每一天，<br>都想與你<span>分享。</span></h1>
+            <p class="hero-description">我們要結婚了！<br>這一次，想邀請你坐在幸福的第一排，<br>一起吃飯、聊天，見證我們的新篇章。</p>
+            <a class="button button-primary" href="#details">把這天留給我們 <span aria-hidden="true">↗</span></a>
+            <p class="hero-footnote"><span class="scroll-cue" aria-hidden="true">↓</span> 向下捲動，翻開我們的好日子。</p>
+          </div>
+          <div class="hero-art" aria-label="花草環繞的紙本喜帖插畫">
+            <span class="art-caption">WITH OUR FAVORITE PEOPLE</span>
+            <div class="paper-anchor"><div class="paper-flight"><div class="invitation-paper">
+              <div class="paper-border"></div>
+              <img class="botanical botanical-left" src="assets/invitation-botanical.svg" alt="" width="240" height="440">
+              <img class="botanical botanical-right" src="assets/invitation-botanical.svg" alt="" width="240" height="440">
+              <div class="paper-content"><span class="paper-kicker">THE WEDDING OF</span><p class="paper-names" data-couple>子謙 & 以安</p><div class="paper-title">我們<br>結婚了<span class="paper-heart" aria-hidden="true">♡</span></div><p class="paper-english">a lifetime of little moments</p><div class="paper-date" data-short-date>2027.05.22</div><span class="paper-bottom">誠摯邀請・與你同慶</span></div>
+            </div></div></div>
+            <span class="wax-seal" aria-hidden="true">囍</span>
+            <span class="art-note">a new chapter, with you.</span>
+          </div>
+          <div class="page-folio"><span>WITH LOVE, FOR YOU</span><span>封面 / 01</span></div>
+        </section>
 
-    <div class="date-band"><div class="page-width date-band-inner"><div><span class="band-label">SAVE THE DATE</span><strong data-short-date>2027.05.22</strong><span data-weekday>星期六</span></div><span class="band-flower" aria-hidden="true">✳</span><p>一場婚禮，一桌好菜，<br>還有我們最喜歡的你。</p><a href="#details">看看婚宴資訊 <span aria-hidden="true">↓</span></a></div></div>
+        <section class="details book-page book-details" data-book-page="1" id="details" aria-labelledby="details-title">
+          <p class="inside-note">有些日子，因為有你，才更完整。</p>
+          <div class="section-heading"><div><p class="eyebrow">THE CELEBRATION</p><h2 id="details-title" tabindex="-1">我們的好日子</h2></div><span class="sample-label" id="sample-label">婚宴資訊為範例，待新人確認</span></div>
+          <div class="details-grid">
+            <article class="detail-card time-card"><div class="detail-top"><span>WHEN / 婚宴時間</span><span aria-hidden="true">01</span></div><h3 data-long-date>2027 年 5 月 22 日</h3><p class="detail-weekday" data-weekday>星期六</p><div class="time-row"><div><strong id="welcome-time">11:30</strong><span>溫暖迎賓</span></div><span class="time-divider" aria-hidden="true"></span><div><strong id="banquet-time">12:00</strong><span>幸福開席</span></div></div><button class="text-action" id="calendar-button" type="button">加入我的行事曆 <span aria-hidden="true">＋</span></button></article>
+            <article class="detail-card venue-card"><div class="detail-top"><span>WHERE / 婚宴地點</span><span aria-hidden="true">02</span></div><h3 id="venue-name">幸福花園婚宴會館</h3><p class="venue-room" id="venue-room">花園廳 · 2F</p><p class="venue-address" id="venue-address">台北市・詳細地址待新人確認</p><p class="venue-note" id="venue-note">把這一天空下來，交通資訊將隨正式喜帖提供。</p><a class="text-action" id="map-link" target="_blank" rel="noopener noreferrer" hidden>查看交通路線 <span aria-hidden="true">↗</span></a><span class="venue-sprig" aria-hidden="true">❧</span></article>
+          </div>
+          <div class="details-next"><p>一場婚禮，一桌好菜，<br>還有我們最喜歡的你。</p><a class="button button-primary" href="#rsvp">留下出席資訊 <span aria-hidden="true">↗</span></a></div>
+          <div class="page-folio"><span>OUR NEXT CHAPTER</span><span>婚宴 / 02</span></div>
+        </section>
 
-    <section class="our-note page-width" aria-labelledby="note-title"><span class="note-flower" aria-hidden="true">✳</span><p class="eyebrow">A NOTE FROM US</p><h2 id="note-title">有些日子，因為有你，才更完整。</h2><p>從相遇到相伴，我們收集了好多平凡又珍貴的日常。<br>而這個特別的日子，也想把你寫進我們的故事裡。<br>謝謝你一路的陪伴，接下來的幸福，邀請你一起見證。</p><p class="note-signature" data-couple>子謙 & 以安</p></section>
-
-    <section class="details page-width" id="details" aria-labelledby="details-title">
-      <div class="section-heading"><div><p class="eyebrow">THE CELEBRATION</p><h2 id="details-title">我們的好日子</h2></div><span class="sample-label" id="sample-label">婚宴資訊為範例，待新人確認</span></div>
-      <div class="details-grid">
-        <article class="detail-card time-card"><div class="detail-top"><span>WHEN / 婚宴時間</span><span aria-hidden="true">01</span></div><h3 data-long-date>2027 年 5 月 22 日</h3><p class="detail-weekday" data-weekday>星期六</p><div class="time-row"><div><strong id="welcome-time">11:30</strong><span>溫暖迎賓</span></div><span class="time-divider" aria-hidden="true"></span><div><strong id="banquet-time">12:00</strong><span>幸福開席</span></div></div><button class="text-action" id="calendar-button" type="button">加入我的行事曆 <span aria-hidden="true">＋</span></button></article>
-        <article class="detail-card venue-card"><div class="detail-top"><span>WHERE / 婚宴地點</span><span aria-hidden="true">02</span></div><h3 id="venue-name">幸福花園婚宴會館</h3><p class="venue-room" id="venue-room">花園廳 · 2F</p><p class="venue-address" id="venue-address">台北市・詳細地址待新人確認</p><p class="venue-note" id="venue-note">把這一天空下來，交通資訊將隨正式喜帖提供。</p><a class="text-action" id="map-link" target="_blank" rel="noopener noreferrer" hidden>查看交通路線 <span aria-hidden="true">↗</span></a><span class="venue-sprig" aria-hidden="true">❧</span></article>
+        <section class="rsvp-section book-page book-rsvp" data-book-page="2" id="rsvp" aria-labelledby="rsvp-title">
+          <aside class="rsvp-intro"><p class="eyebrow">PLEASE REPLY · RSVP</p><h2 id="rsvp-title" tabindex="-1">留一個位置，<br>給最重要的你。</h2><p>能來，讓我們好好擁抱。<br>無法到場，你的心意也一樣珍貴。</p><div class="reply-deadline"><span aria-hidden="true">♡</span><p>請於 <strong id="reply-by">2027.04.30</strong> 前回覆<br><span>讓我們好好準備，迎接你的到來。</span></p></div><div class="little-envelope" aria-hidden="true"><span>with love</span><b>♡</b></div></aside>
+          <div class="form-card">
+            <form id="rsvp-form">
+              <div class="form-heading"><span>一份邀請，等你的回音</span><span aria-hidden="true">♡</span></div>
+              <div class="field"><label for="guest-name">怎麼稱呼你？ <span class="required-note">必填</span></label><input id="guest-name" name="guestName" autocomplete="name" placeholder="留下你的姓名，讓我們認出你" maxlength="80" required></div>
+              <fieldset class="attendance-field"><legend>這一天，你會來嗎？ <span class="required-note">必選</span></legend><div class="attendance-options"><label class="attendance-choice"><input type="radio" name="attendance" value="yes" required aria-controls="attending-details"><span class="choice-icon" aria-hidden="true">♡</span><span><strong>我會出席</strong><small>一起分享你們的幸福</small></span><span class="radio-mark" aria-hidden="true"></span></label><label class="attendance-choice"><input type="radio" name="attendance" value="no" required aria-controls="attending-details"><span class="choice-icon" aria-hidden="true">✉</span><span><strong>這次無法到場</strong><small>把滿滿祝福送給你們</small></span><span class="radio-mark" aria-hidden="true"></span></label></div></fieldset>
+              <fieldset id="attending-details" class="attending-details" hidden disabled><legend class="visually-hidden">出席與用餐資訊</legend>
+                <div class="guest-details"><div class="field"><label for="guest-count">出席人數 <span class="required-note">含自己</span></label><select id="guest-count" name="guestCount"><option value="1">1 位</option><option value="2">2 位</option><option value="3">3 位</option><option value="4">4 位</option><option value="5">5 位</option><option value="6">6 位</option><option value="7">7 位</option><option value="8">8 位</option><option value="9">9 位</option><option value="10">10 位</option><option value="11">11 位</option><option value="12">12 位</option><option value="13">13 位</option><option value="14">14 位</option><option value="15">15 位</option><option value="16">16 位</option><option value="17">17 位</option><option value="18">18 位</option><option value="19">19 位</option><option value="20">20 位</option></select></div><div class="field"><label for="vegetarian-count">其中幾位吃素？</label><select id="vegetarian-count" name="vegetarianCount"><option value="0">無素食需求</option><option value="1">1 位素食</option></select></div></div>
+                <div class="field"><label for="child-seats">需要幾張兒童座椅？ <span class="optional-note">選填</span></label><select id="child-seats" name="childSeats"><option value="0">不需要</option><option value="1">1 張</option></select></div>
+                <div class="field"><label for="diet-notes">飲食備註 <span class="optional-note">選填</span></label><input id="diet-notes" name="dietNotes" maxlength="300" placeholder="例如：全素、蛋奶素，或食物過敏"></div>
+                <div class="field memory-field"><label for="memory-photos">分享一張，我們的共同回憶 <span class="optional-note">選填</span></label><p class="field-note" id="photo-hint">那些一起笑過的日子，也想在這天重溫。</p><label class="upload-area" id="upload-area" for="memory-photos"><span class="upload-icon" aria-hidden="true">＋</span><strong>點擊選擇，或把照片拖到這裡</strong><span>JPG、PNG、WebP · 最多 3 張，每張 10 MB</span><input id="memory-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="photo-hint photo-status"></label><div id="photo-previews" class="photo-previews"></div><p id="photo-status" class="field-note" role="status"></p><p class="privacy-note">照片僅供新人留存，不會加入公開的婚禮相簿。</p></div>
+                <p id="static-photo-note" class="field-note" hidden>這份 Google 表單目前沒有照片上傳欄位，歡迎先在下方留下我們的共同回憶。</p>
+              </fieldset>
+              <div class="field message-field"><label for="guest-message">有一段話，想對你們說 <span class="optional-note">選填</span></label><textarea id="guest-message" name="message" rows="4" maxlength="2000" placeholder="一句祝福、一段回憶，或是平常不好意思說的話……"></textarea><div class="message-footer"><span>不論能否到場，我們都想聽見你的心意。</span><span id="message-count">0 / 2000</span></div></div>
+              <p id="form-status" class="form-status" role="status" tabindex="-1"></p>
+              <button class="button button-primary submit-button" id="submit-button" type="submit">寄出回覆與祝福 <span aria-hidden="true">↗</span></button><p class="form-footnote" id="submission-note">送出後會留在此頁顯示提示，收藏你的回覆與祝福。</p>
+              <p class="google-form-alternative" id="google-form-alternative" hidden><a id="google-form-link" target="_blank" rel="noopener noreferrer">也可以直接在 Google 表單回覆 <span aria-hidden="true">↗</span></a></p>
+            </form>
+            <div class="success-panel" id="success-panel" tabindex="-1" hidden><span class="success-flower" aria-hidden="true">✳</span><p class="eyebrow">DELIVERED WITH LOVE</p><h3>你的心意，我們收到了。</h3><p id="success-message"></p><p id="success-summary"></p><p class="receipt" id="receipt"></p><a class="button button-outline" href="#invitation">再看一次喜帖 <span aria-hidden="true">↑</span></a></div>
+          </div>
+        </section>
       </div>
-    </section>
-
-    <section class="rsvp-section page-width" id="rsvp" aria-labelledby="rsvp-title">
-      <aside class="rsvp-intro"><p class="eyebrow">PLEASE REPLY · RSVP</p><h2 id="rsvp-title">留一個位置，<br>給最重要的你。</h2><p>能來，讓我們好好擁抱。<br>無法到場，你的心意也一樣珍貴。</p><div class="reply-deadline"><span aria-hidden="true">♡</span><p>請於 <strong id="reply-by">2027.04.30</strong> 前回覆<br><span>讓我們好好準備，迎接你的到來。</span></p></div><div class="little-envelope" aria-hidden="true"><span>with love</span><b>♡</b></div></aside>
-      <div class="form-card">
-        <form id="rsvp-form">
-          <div class="form-heading"><span>一份邀請，等你的回音</span><span aria-hidden="true">♡</span></div>
-          <div class="field"><label for="guest-name">怎麼稱呼你？ <span class="required-note">必填</span></label><input id="guest-name" name="guestName" autocomplete="name" placeholder="留下你的姓名，讓我們認出你" maxlength="80" required></div>
-          <fieldset class="attendance-field"><legend>這一天，你會來嗎？ <span class="required-note">必選</span></legend><div class="attendance-options"><label class="attendance-choice"><input type="radio" name="attendance" value="yes" required aria-controls="attending-details"><span class="choice-icon" aria-hidden="true">♡</span><span><strong>我會出席</strong><small>一起分享你們的幸福</small></span><span class="radio-mark" aria-hidden="true"></span></label><label class="attendance-choice"><input type="radio" name="attendance" value="no" required aria-controls="attending-details"><span class="choice-icon" aria-hidden="true">✉</span><span><strong>這次無法到場</strong><small>把滿滿祝福送給你們</small></span><span class="radio-mark" aria-hidden="true"></span></label></div></fieldset>
-          <fieldset id="attending-details" class="attending-details" hidden disabled><legend class="visually-hidden">出席與用餐資訊</legend>
-            <div class="guest-details"><div class="field"><label for="guest-count">出席人數 <span class="required-note">含自己</span></label><select id="guest-count" name="guestCount"><option value="1">1 位</option><option value="2">2 位</option><option value="3">3 位</option><option value="4">4 位</option><option value="5">5 位</option><option value="6">6 位</option><option value="7">7 位</option><option value="8">8 位</option><option value="9">9 位</option><option value="10">10 位</option><option value="11">11 位</option><option value="12">12 位</option><option value="13">13 位</option><option value="14">14 位</option><option value="15">15 位</option><option value="16">16 位</option><option value="17">17 位</option><option value="18">18 位</option><option value="19">19 位</option><option value="20">20 位</option></select></div><div class="field"><label for="vegetarian-count">其中幾位吃素？</label><select id="vegetarian-count" name="vegetarianCount"><option value="0">無素食需求</option><option value="1">1 位素食</option></select></div></div>
-            <div class="field"><label for="child-seats">需要幾張兒童座椅？ <span class="optional-note">選填</span></label><select id="child-seats" name="childSeats"><option value="0">不需要</option><option value="1">1 張</option></select></div>
-            <div class="field"><label for="diet-notes">飲食備註 <span class="optional-note">選填</span></label><input id="diet-notes" name="dietNotes" maxlength="300" placeholder="例如：全素、蛋奶素，或食物過敏"></div>
-            <div class="field memory-field"><label for="memory-photos">分享一張，我們的共同回憶 <span class="optional-note">選填</span></label><p class="field-note" id="photo-hint">那些一起笑過的日子，也想在這天重溫。</p><label class="upload-area" id="upload-area" for="memory-photos"><span class="upload-icon" aria-hidden="true">＋</span><strong>點擊選擇，或把照片拖到這裡</strong><span>JPG、PNG、WebP · 最多 3 張，每張 10 MB</span><input id="memory-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="photo-hint photo-status"></label><div id="photo-previews" class="photo-previews"></div><p id="photo-status" class="field-note" role="status"></p><p class="privacy-note">照片僅供新人留存，不會加入公開的婚禮相簿。</p></div>
-            <p id="static-photo-note" class="field-note" hidden>這份 Google 表單目前沒有照片上傳欄位，歡迎先在下方留下我們的共同回憶。</p>
-          </fieldset>
-          <div class="field message-field"><label for="guest-message">有一段話，想對你們說 <span class="optional-note">選填</span></label><textarea id="guest-message" name="message" rows="4" maxlength="2000" placeholder="一句祝福、一段回憶，或是平常不好意思說的話……"></textarea><div class="message-footer"><span>不論能否到場，我們都想聽見你的心意。</span><span id="message-count">0 / 2000</span></div></div>
-          <p id="form-status" class="form-status" role="status" tabindex="-1"></p>
-          <button class="button button-primary submit-button" id="submit-button" type="submit">寄出回覆與祝福 <span aria-hidden="true">↗</span></button><p class="form-footnote" id="submission-note">送出後會留在此頁顯示提示，收藏你的回覆與祝福。</p>
-          <p class="google-form-alternative" id="google-form-alternative" hidden><a id="google-form-link" target="_blank" rel="noopener noreferrer">也可以直接在 Google 表單回覆 <span aria-hidden="true">↗</span></a></p>
-        </form>
-        <div class="success-panel" id="success-panel" tabindex="-1" hidden><span class="success-flower" aria-hidden="true">✳</span><p class="eyebrow">DELIVERED WITH LOVE</p><h3>你的心意，我們收到了。</h3><p id="success-message"></p><p id="success-summary"></p><p class="receipt" id="receipt"></p><a class="button button-outline" href="#invitation">再看一次喜帖 <span aria-hidden="true">↑</span></a></div>
-      </div>
-    </section>
+    </div>
+    <nav class="book-navigation" aria-label="喜帖頁次" hidden><a href="#invitation" aria-current="step"><span>01</span> 邀請</a><span class="chapter-line" aria-hidden="true"></span><a href="#details"><span>02</span> 婚宴</a><span class="chapter-line" aria-hidden="true"></span><a href="#rsvp"><span>03</span> 回覆</a></nav>
     <section class="closing page-width"><span aria-hidden="true">♡</span><h2>一起，把這一天變成美好的回憶。</h2><p>CAN’T WAIT TO CELEBRATE WITH YOU</p></section>
   </main>
   <footer class="site-footer page-width"><a class="footer-couple" href="#invitation" data-couple>子謙 & 以安</a><span>MADE WITH LOVE, FOR YOU.</span><a href="photos.html">婚禮照片 <span aria-hidden="true">↗</span></a></footer>
-  <script src="config.js"></script><script src="assets/api-client.js"></script><script src="assets/invitation-google-form.js"></script><script src="assets/invitation.js"></script>
+  <script src="config.js"></script><script src="assets/api-client.js"></script><script src="assets/invitation-google-form.js"></script><script src="assets/invitation.js"></script><script src="assets/invitation-book.js"></script>
 </body>
 </html>

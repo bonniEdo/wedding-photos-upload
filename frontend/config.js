@@ -11,7 +11,7 @@ window.WEDDING_CONFIG={
   // 電子喜帖：正式使用時請替換以下範例，確認後將 isSample 改為 false。
   INVITATION:{
     isSample:true,
-    coupleNames:'鑫佑 & 婉瑩',
+    coupleNames:'鑫佑 & 宛瑩',
     date:'2027-06-19',
     welcomeTime:'11:30',
     banquetTime:'12:00',
