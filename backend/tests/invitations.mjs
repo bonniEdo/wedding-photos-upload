@@ -9,7 +9,12 @@ const require = createRequire(import.meta.url);
 const express = require('express');
 const invitations = require('../invitations');
 const data = await mkdtemp(path.join(tmpdir(),'wedding-rsvp-test-'));
-const app = express(); app.use('/api/invitations',invitations({data}));
+let cloudMode='off';
+const cloud={sync:async()=>{
+  if(cloudMode==='fail')throw Object.assign(new Error('Google 表單待重試'),{status:502,code:'GOOGLE_FORMS_PENDING'});
+  return cloudMode==='on'?{enabled:true,synced:true}:{enabled:false};
+}};
+const app = express(); app.use('/api/invitations',invitations({data,googleForms:cloud}));
 const server = app.listen(0,'127.0.0.1');
 await new Promise(resolve => server.once('listening',resolve));
 const url = `http://127.0.0.1:${server.address().port}/api/invitations/rsvp`;
@@ -49,6 +54,15 @@ try {
   assert.equal((await send({},[{bytes:Buffer.alloc(10*1024*1024+1),type:'image/png',name:'too-large.png'}])).status,400,'oversize photo rejected');
   assert((await readdir(path.join(data,'rsvps'))).every(name=>!name.startsWith('.pending-')),'no staging files left');
   assert.equal((await fetch(`${url}/${id}`)).status,404,'responses not publicly readable');
+  cloudMode='fail';const interruptedId=randomUUID();
+  const interrupted=await send({requestId:interruptedId});
+  assert.equal(interrupted.status,502);assert.equal(interrupted.body.localSaved,true);
+  assert.equal(JSON.parse(await readFile(path.join(data,'rsvps',interruptedId,'response.json'),'utf8')).guestName,'測試賓客','Google failure preserves local data');
+  cloudMode='on';const retried=await send({requestId:interruptedId});
+  assert.equal(retried.status,201);assert.equal(retried.body.googleForms.synced,true);
+  const seats=await send({childSeats:'2'});
+  assert.equal(seats.status,201);assert.equal(JSON.parse(await readFile(path.join(data,'rsvps',seats.body.id,'response.json'),'utf8')).childSeats,2);
+  for (const childSeats of ['-1','4','1.5'])assert.equal((await send({childSeats})).status,400,'invalid child seat count');
   console.log('PASS: attendance and decline records, blessings, private photo persistence, idempotent/concurrent retries, input validation, image signatures, upload limits, staging cleanup and no public read API.');
 } finally {
   await new Promise(resolve=>server.close(resolve));

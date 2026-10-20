@@ -27,9 +27,13 @@ node dev-server.mjs
 
 開啟 `http://localhost:5173/invitation.html`（Node 後端亦可用 `http://localhost:3000/invitation.html`）。在 `config.js` 的 `INVITATION` 修改新人姓名、日期、迎賓／開席／結束時間、回覆日期、會館與地址；確認資料後將 `isSample` 改為 `false`。`mapsQuery` 填入正式地址才會顯示 Google Maps 連結。加入行事曆使用台灣時間，範例資料產生的行程會標記「範例」。
 
-選擇出席才展開出席人數（含本人，1–20 位）、素食人數、飲食備註與選填照片。照片最多 3 張，每張 10 MB，支援 JPG／PNG／WebP，可預覽、移除與拖放。無論是否出席，都可填寫給新人的話。
+選擇出席才展開出席人數（含本人，1–20 位）、素食人數、兒童座椅數量、飲食備註與選填照片。照片最多 3 張，每張 10 MB，支援 JPG／PNG／WebP，可預覽、移除與拖放。無論是否出席，都可填寫給新人的話。
 
-回覆須啟動 Node 後端，經 `POST /api/invitations/rsvp` 存到 `DATA_DIR/rsvps/<回覆 UUID>/response.json`，照片放在同一個私有資料夾，不進入公開相簿、人臉分析或 Drive 備份流程。請將 `rsvps/` 一起備份；目前由新人從伺服器讀取，未提供公開查詢介面或管理統計頁。前端確認後端儲存成功才會顯示送達；失敗時保留填寫內容，同一份回覆的重試不重複建檔。既有 Node 服務需重新啟動才能載入新增 API。
+`INVITATION.googleFormUrl` 已設定為新人提供的「參加的人」Google 表單，喜帖表單下方提供直接填寫入口。這是可立即開啟的外部連結；喜帖本身的送出仍呼叫 Node API，自動同步需另外完成 Apps Script 部署。不要將這個公開填寫網址誤填為後端的 Apps Script 部署網址。
+
+回覆須啟動 Node 後端，經 `POST /api/invitations/rsvp` 存到 `DATA_DIR/rsvps/<回覆 UUID>/response.json`，照片放在同一個私有資料夾，不進入公開相簿或人臉分析。請將 `rsvps/` 一起備份。可依 [Google 表單設定指南](../integrations/google-forms/README.md) 啟用雲端同步：維持目前喜帖畫面，回覆會進 Google 表單與連動試算表，照片進獨立私人 Drive 資料夾，表單記錄照片連結。Google 設定與 Secret 僅放後端 `.env`，不放前端。
+
+未啟用 Google 時，確認本機儲存成功才顯示送達；啟用後則等 Google 確認回覆編號才顯示成功。失敗時保留填寫內容，同一份回覆的重試不重複建檔。既有 Node 服務需重新啟動才能載入設定與 API。未啟用 Google 時，新人仍由伺服器讀取資料；目前沒有管理統計頁或公開查詢介面。
 
 驗證：`node backend/tests/invitations.mjs`（於專案根目錄執行；使用隔離的暫存資料，不會更動正式回覆）。
 

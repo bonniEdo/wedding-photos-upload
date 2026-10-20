@@ -11,17 +11,19 @@ window.WEDDING_CONFIG={
   // 電子喜帖：正式使用時請替換以下範例，確認後將 isSample 改為 false。
   INVITATION:{
     isSample:true,
-    coupleNames:'子謙 & 以安',
-    date:'2027-05-22',
+    coupleNames:'鑫佑 & 婉瑩',
+    date:'2027-06-19',
     welcomeTime:'11:30',
     banquetTime:'12:00',
     endTime:'15:00',
     replyBy:'2027-04-30',
-    venueName:'幸福花園婚宴會館',
-    venueRoom:'花園廳 · 2F',
-    venueAddress:'台北市・詳細地址待新人確認',
+    venueName:'晶宴會館-御豐館',
+    venueRoom:'綺麗廳',
+    venueAddress:'新竹市東區光復里公道五路三段1號',
     venueNote:'把這一天空下來，交通資訊將隨正式喜帖提供。',
     // 填入正式地址後顯示 Google Maps 交通連結。
     mapsQuery:'',
+    // Google 表單填寫入口；自動同步仍須設定後端的 Apps Script 部署網址與 Secret。
+    googleFormUrl:'https://docs.google.com/forms/d/e/1FAIpQLSdkKuTSGS_u79FWXt1khwJmPGU2kSHNyYj_vrZDTjfjGS4UZg/viewform',
   },
 };

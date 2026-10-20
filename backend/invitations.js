@@ -5,7 +5,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-module.exports = function invitations({data}) {
+module.exports = function invitations({data,googleForms=require('./google-forms')({data})}) {
   const router = express.Router();
   const root = path.join(data,'rsvps');
   const pending = new Map();
@@ -39,11 +39,13 @@ module.exports = function invitations({data}) {
     const attending = body.attendance==='yes';
     const count = attending ? Number(body.guestCount) : 0;
     const vegetarianCount = attending ? Number(body.vegetarianCount) : 0;
+    const childSeats = attending ? Number(body.childSeats ?? 0) : 0;
     if (!Number.isInteger(count) || count < (attending?1:0) || count>20) throw invalid('出席人數須為 1 至 20 位。');
     if (!Number.isInteger(vegetarianCount) || vegetarianCount<0 || vegetarianCount>count) throw invalid('素食人數不能超過出席人數。');
+    if (!Number.isInteger(childSeats) || childSeats<0 || childSeats>count) throw invalid('兒童座椅數量須介於 0 與出席人數之間。');
     const files = req.files || [];
     if (!attending && files.length) throw invalid('只有出席回覆可附上回憶照片。');
-    const record = {id,guestName:text(body,'guestName',80,true),attending,guestCount:count,vegetarianCount,
+    const record = {id,guestName:text(body,'guestName',80,true),attending,guestCount:count,vegetarianCount,...(childSeats?{childSeats}:{}),
       dietNotes:attending?text(body,'dietNotes',300):'',message:text(body,'message',2000),
       photos:files.map((file,i) => ({file:`memory-${i+1}${imageExtension(file)}`,originalName:path.basename(file.originalname).slice(0,200),size:file.size,mimeType:file.mimetype,sha256:crypto.createHash('sha256').update(file.buffer).digest('hex')})),
     };
@@ -78,11 +80,12 @@ module.exports = function invitations({data}) {
       try {
         if (error) throw Object.assign(error,{status:400});
         const result = await save(req);
-        res.set('Cache-Control','no-store').status(201).json(result);
+        const sync = await googleForms.sync(result.id);
+        res.set('Cache-Control','no-store').status(201).json({...result,googleForms:sync});
       } catch (error) {
         if (!error.status) console.error('RSVP save failed:',error.message);
         const message = error instanceof multer.MulterError ? '最多 3 張照片，每張 10 MB；請確認欄位與照片大小。' : error.status ? error.message : '回覆儲存失敗，請稍後重試。';
-        res.status(error.status || 500).json({ok:false,message});
+        res.status(error.status || 500).json({ok:false,message,...(error.code==='GOOGLE_FORMS_PENDING'?{code:error.code,localSaved:true}:{})});
       } finally {release();}
     });
   });

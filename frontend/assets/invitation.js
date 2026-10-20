@@ -21,6 +21,15 @@
     $('map-link').href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(config.mapsQuery)}`;
     $('map-link').hidden = false;
   }
+  if (config.googleFormUrl) {
+    try {
+      const url = new URL(config.googleFormUrl);
+      if (url.origin === 'https://docs.google.com' && /^\/forms\/d\/e\/[a-zA-Z0-9_-]+\/viewform$/.test(url.pathname) && !url.username && !url.password) {
+        $('google-form-link').href = url.href;
+        $('google-form-alternative').hidden = false;
+      }
+    } catch { /* Leave the optional link hidden if the configured URL is invalid. */ }
+  }
 
   // UTC dates make the downloaded event display correctly outside Taiwan too.
   function calendarDate(time) { return new Date(`${config.date}T${time}:00+08:00`).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,''); }
@@ -55,6 +64,9 @@
     const previous = Number($('vegetarian-count').value);
     $('vegetarian-count').replaceChildren(...Array.from({length:Number($('guest-count').value)+1}, (_,i) => new Option(i ? `${i} 位素食` : '無素食需求', i)));
     $('vegetarian-count').value = Math.min(previous, Number($('guest-count').value));
+    const seats = Number($('child-seats').value);
+    $('child-seats').replaceChildren(...Array.from({length:Number($('guest-count').value)+1}, (_,i) => new Option(i ? `${i} 張` : '不需要', i)));
+    $('child-seats').value = Math.min(seats, Number($('guest-count').value));
   }
   form.addEventListener('change', event => {
     requestId = null;
@@ -123,8 +135,9 @@
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok) throw new Error(result?.message || '回覆尚未送出，請稍後重試。');
       $('success-message').textContent = attending ? `謝謝你，${data.get('guestName')}！期待在這個好日子，和你一起笑、一起慶祝。` : `謝謝你，${data.get('guestName')}。雖然這次無法相聚，你的祝福依然讓這一天更加完整。`;
-      $('success-summary').textContent = attending ? `已登記 ${data.get('guestCount')} 位出席・${data.get('vegetarianCount')} 位素食${photos.length?`・${photos.length} 張共同回憶`:''}` : '已記錄無法出席，並為你收藏這份心意。';
+      $('success-summary').textContent = attending ? `已登記 ${data.get('guestCount')} 位出席・${data.get('vegetarianCount')} 位素食${Number(data.get('childSeats'))?`・${data.get('childSeats')} 張兒童座椅`:''}${photos.length?`・${photos.length} 張共同回憶`:''}` : '已記錄無法出席，並為你收藏這份心意。';
       $('receipt').textContent = `回覆編號 ${result.id.slice(0,8)}`;
+      if (result.googleForms?.synced) $('receipt').textContent += ' · 回覆已同步';
       form.hidden = true; $('success-panel').hidden = false; $('success-panel').focus();
       previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; photos = [];
     } catch (error) {
