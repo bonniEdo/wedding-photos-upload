@@ -85,7 +85,7 @@ module.exports = function invitations({data,googleForms=require('./google-forms'
       } catch (error) {
         if (!error.status) console.error('RSVP save failed:',error.message);
         const message = error instanceof multer.MulterError ? '最多 3 張照片，每張 10 MB；請確認欄位與照片大小。' : error.status ? error.message : '回覆儲存失敗，請稍後重試。';
-        res.status(error.status || 500).json({ok:false,message,...(error.code==='GOOGLE_FORMS_PENDING'?{code:error.code,localSaved:true}:{})});
+        res.status(error.status || 500).json({ok:false,message,...(['GOOGLE_FORMS_PENDING','GOOGLE_FORMS_UNCERTAIN'].includes(error.code)?{code:error.code,localSaved:true}:{})});
       } finally {release();}
     });
   });

@@ -21,7 +21,7 @@ pnpm dev
 
 人物頁：<http://localhost:5173/people.html>；管理頁：<http://localhost:5173/admin-people.html>。第一次需要網路安裝 Python 依賴與下載模型，之後沿用本機檔案。不必手動啟用虛擬環境，也不必開三個 Terminal。按 **Ctrl+C** 一起停止；任一服務啟動失敗時，Turborepo 也會停止其他服務並顯示錯誤。
 
-電子喜帖：<http://localhost:5173/invitation.html>。可保留喜帖畫面並將出席回覆、祝福同步到 Google 表單與連動試算表，照片存進私人 Google Drive 資料夾；首次使用請依 [Google 表單串接指南](integrations/google-forms/README.md) 建立與部署 Apps Script。
+電子喜帖：可直接開啟 `frontend/invitation.html`，或使用 <http://localhost:5173/invitation.html>。預設透過隱藏 iframe 原生提交 Google 表單，留在喜帖顯示 alert，沿用已連動試算表，無需後端或 Apps Script。此模式無法讀取跨來源收件結果，提示不宣稱 Google 已確認收到。目前該表單沒有照片上傳題，純靜態模式不接收照片；詳見 [Google 表單串接指南](integrations/google-forms/README.md)。
 
 未設定 Google Drive 資料夾且未指定 `DRIVE_ENABLED` 時，Node **開發模式**先關閉雲端備份，照片存於本機；人物相簿與自拍搜尋仍可使用。要啟用 Drive，依下方說明設定 `backend/.env`、OAuth 憑證後重啟。開發啟動保留 `.env` 與外部環境變數；Node 和 Python 仍共用原本的 `DATA_DIR`。只在本機測試時，也可明確設定 `DRIVE_ENABLED=false`。
 

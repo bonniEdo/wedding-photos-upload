@@ -25,17 +25,17 @@ node dev-server.mjs
 
 ## 電子喜帖
 
-開啟 `http://localhost:5173/invitation.html`（Node 後端亦可用 `http://localhost:3000/invitation.html`）。在 `config.js` 的 `INVITATION` 修改新人姓名、日期、迎賓／開席／結束時間、回覆日期、會館與地址；確認資料後將 `isSample` 改為 `false`。`mapsQuery` 填入正式地址才會顯示 Google Maps 連結。加入行事曆使用台灣時間，範例資料產生的行程會標記「範例」。
+預設 `INVITATION.submissionMode:'google-form'`，直接開啟 `invitation.html` 或放在靜態網站上即可填寫，不需 Node 後端；須保留旁邊的 `config.js` 和 `assets/`。也可使用 `http://localhost:5173/invitation.html` 預覽。在 `config.js` 的 `INVITATION` 修改新人姓名、日期、迎賓／開席／結束時間、回覆日期、會館與地址；確認資料後將 `isSample` 改為 `false`。`mapsQuery` 填入正式地址才會顯示 Google Maps 連結。加入行事曆使用台灣時間，範例行程會標記「範例」。
 
-選擇出席才展開出席人數（含本人，1–20 位）、素食人數、兒童座椅數量、飲食備註與選填照片。照片最多 3 張，每張 10 MB，支援 JPG／PNG／WebP，可預覽、移除與拖放。無論是否出席，都可填寫給新人的話。
+選擇出席才展開出席人數（含本人，1–20 位）、素食人數、兒童座椅與飲食備註。無論是否出席，都可填寫給新人的話。Google 表單目前沒有照片上傳題，因此純靜態模式隱藏照片選擇器並顯示說明，不會讓賓客選了照片卻未保存。
 
-`INVITATION.googleFormUrl` 已設定為新人提供的「參加的人」Google 表單，喜帖表單下方提供直接填寫入口。這是可立即開啟的外部連結；喜帖本身的送出仍呼叫 Node API，自動同步需另外完成 Apps Script 部署。不要將這個公開填寫網址誤填為後端的 Apps Script 部署網址。
+送出時使用原生 HTML `form` POST 到 Google 的 `formResponse`，目標是隱藏 iframe，使用者留在喜帖。初始空白 iframe 載入後才送出，之後載入時顯示 alert：「謝謝你的心意！回覆已送出，請以新人確認為準。」不使用跨來源 `fetch`，也不把 iframe 的 load 當成已驗證收件。素食人數與飲食備註附在「給新人的話」最後。`INVITATION.googleFormUrl` 為新人提供的「參加的人」，沿用其試算表；更換表單時需更新 `assets/invitation-google-form.js` 的欄位對照。
 
-回覆須啟動 Node 後端，經 `POST /api/invitations/rsvp` 存到 `DATA_DIR/rsvps/<回覆 UUID>/response.json`，照片放在同一個私有資料夾，不進入公開相簿或人臉分析。請將 `rsvps/` 一起備份。可依 [Google 表單設定指南](../integrations/google-forms/README.md) 啟用雲端同步：維持目前喜帖畫面，回覆會進 Google 表單與連動試算表，照片進獨立私人 Drive 資料夾，表單記錄照片連結。Google 設定與 Secret 僅放後端 `.env`，不放前端。
+若要使用原有照片留存功能，可明確改成 `submissionMode:'backend'`，並透過 HTTP 啟動 Node API。此選用模式才會將回覆與照片保存到 `DATA_DIR/rsvps/<UUID>/`，照片最多 3 張、每張 10 MB；詳見 [設定指南](../integrations/google-forms/README.md)。
 
-未啟用 Google 時，確認本機儲存成功才顯示送達；啟用後則等 Google 確認回覆編號才顯示成功。失敗時保留填寫內容，同一份回覆的重試不重複建檔。既有 Node 服務需重新啟動才能載入設定與 API。未啟用 Google 時，新人仍由伺服器讀取資料；目前沒有管理統計頁或公開查詢介面。
+純靜態模式受同源限制，無法讀取 Google 在 iframe 裡的收件結果，也不建立本機回覆紀錄。送出或逾時後保留內容並鎖住表單，避免重複點擊。離線或尚未 POST 的錯誤可重試；POST 後逾時則提示聯絡新人核對。若需要可靠收件確認，可選後端模式。
 
-驗證：`node backend/tests/invitations.mjs`（於專案根目錄執行；使用隔離的暫存資料，不會更動正式回覆）。
+驗證：`node backend/tests/invitation-static.mjs`；後端模式另執行 `node backend/tests/invitations.mjs`（皆於專案根目錄執行，不會修改真實 Google 回覆）。
 
 ## 婚禮照片星球
 

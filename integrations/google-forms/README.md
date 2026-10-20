@@ -1,66 +1,61 @@
-# 喜帖串接 Google 表單
+# 喜帖直接提交 Google 表單
 
-保留喜帖的填寫畫面。Node 後端先保存回覆，再透過 Google Apps Script 上傳私人照片、提交 Google 表單；Google 表單連動的試算表可供新人整理出席名單與素食人數。
+喜帖預設由瀏覽器原生提交到 [參加的人](https://docs.google.com/forms/d/e/1FAIpQLSdkKuTSGS_u79FWXt1khwJmPGU2kSHNyYj_vrZDTjfjGS4UZg/viewform)，沿用表單已連動的試算表。不需要 Node 後端、Apps Script、API 金鑰或額外建立試算表。
 
-## 1. 沿用已提供的表單
+## 啟用
 
-目前指定的表單是 [參加的人](https://docs.google.com/forms/d/e/1FAIpQLSdkKuTSGS_u79FWXt1khwJmPGU2kSHNyYj_vrZDTjfjGS4UZg/viewform)。喜帖的 `frontend/config.js` 已加入此填寫連結；喜帖送出按鈕下方可直接開啟這份 Google 表單。填寫連結並不是自動同步的 Apps Script 接收網址，不要放進 `WEDDING_GOOGLE_FORMS_URL`。
+`frontend/config.js` 的 `INVITATION.submissionMode` 預設為 `google-form`。直接開啟 `frontend/invitation.html`，或將整個 `frontend/` 放到靜態網站即可使用；須保留 `assets/` 與 `config.js`，並連線網路。
 
-1. 用表單擁有者帳號開啟這份表單的**編輯畫面**，從右上角「⋮」開啟「指令碼編輯器／Apps Script」。必須從指定表單開啟，不能把 `/d/e/1FA…/viewform` 的公開識別碼當成編輯表單 ID。
-2. 將本目錄的 `Code.gs` 完整貼入編輯器並儲存。程式已設定這份表單的填寫網址，會檢查目前表單是否相符，不會另建表單。
-3. 在函式選單選 `setupWeddingForm`，按「執行」，完成 Google 要求的授權。程式會存取 Google 表單、試算表與 Drive，以建立與寫入回覆及照片；由帳號持有人檢查並完成授權。
-4. 設定會沿用原本的表單與已連動試算表；尚無試算表時才會建立並連動。執行紀錄會顯示管理頁、試算表與私人照片資料夾網址。重跑會沿用同一批資源。
-5. 開啟左側「專案設定 → 指令碼屬性」，找到 `WEDDING_SHARED_SECRET`。稍後將這個值複製到本機後端 `.env`，不用貼在聊天中。
+送出時建立原生 HTML 表單，使用 `POST` 提交到 Google 的 `formResponse`，並以隱藏 iframe 作為目標。喜帖留在原頁，顯示 alert：「謝謝你的心意！回覆已送出，請以新人確認為準。」
 
-程式會沿用既有六題：姓名、是否參加（是／否）、出席人數、兒童座椅、是否素食（是／否）、給新人的話；補上素食人數、飲食備註、照片連結、回覆編號與校驗碼。這些補充題會在執行設定後出現在 Google 表單中，但不會成為賓客必填項目。喜帖已補上兒童座椅數量，沒有出席時不送出座椅需求。不要刪除整合使用的題目、改變題目類型，或啟用「每人限填一次」。
+跨來源 iframe 的 `load` 事件不代表 Google 已接受回覆；喜帖無法讀取其內容，因此提示只說已送出，不宣稱成功收件。需要 Google 已收件的可靠確認時，請改用下方的後端模式，或由新人到試算表核對。
 
-## 2. 部署 Google 接收端
+程式先等待 iframe 的初始空白載入才送出，避免空白頁誤觸發提示；送出期間鎖住表單。收到 iframe 載入事件後保留填寫內容並維持鎖定，避免再次點擊。30 秒逾時或傳送中斷顯示不同的 alert，請新人核對後再決定是否補送；不會宣稱成功。
 
-1. 在 Apps Script 選「部署 → 新增部署作業 → 網頁應用程式」。
-2. 「執行身分」選自己；「誰可以存取」選任何人，供 Node 後端呼叫。部署的接收端會對每個請求驗證上述 Secret；不提供公開讀取、列表或下載功能，不會開放 Drive 照片的分享權限。請勿公開 Secret。
-3. 由帳號持有人完成部署與授權，複製結尾為 `/exec` 的部署網址。不要使用只有編輯者能存取的 `/dev` 測試網址。
+`frontend/assets/invitation-google-form.js` 保存實際表單網址、六個欄位 ID 與轉換邏輯；選用後端模式也共用此定義。`frontend/config.js` 的 `INVITATION.googleFormUrl` 指定目的表單及直接填寫入口。改表單時須一起更新網址與欄位對照。
 
-若公司或學校帳號不允許匿名網頁應用程式，請改用允許此部署方式的帳號，或由管理員決定可用方式。修改 `Code.gs` 後，需管理部署並選新版本，既有 `/exec` 才會更新。
+| 喜帖欄位 | Google 表單欄位 |
+| --- | --- |
+| 姓名 | 姓名 |
+| 是否出席 | 是否參加（是／否） |
+| 出席人數 | 出席人數 |
+| 兒童座椅數量 | 兒童座椅 |
+| 素食人數大於 0 | 是否素食（是／否） |
+| 給新人的話 | 給新人的話 |
 
-## 3. 設定專案後端
+原表單只有六題，素食人數與飲食備註會附在「給新人的話」最後的「用餐補充」，祝福文字完整保留。無法出席時清除隱藏的人數與飲食資料。不會修改 Google 表單題目。
 
-在 `backend/.env` 加入：
+## 照片
 
-```dotenv
-WEDDING_GOOGLE_FORMS_URL=https://script.google.com/macros/s/你的部署ID/exec
-WEDDING_GOOGLE_FORMS_SECRET=填入指令碼屬性的WEDDING_SHARED_SECRET
-```
+原表單沒有照片上傳題，所以純靜態模式不接收照片，會隱藏照片選擇器並說明。若日後要用 Google 收照片，須由新人新增照片上傳題，再調整整合流程；不可把本機圖片預覽當成已上傳。原有本機照片留存功能只在下面的後端選用模式提供。
 
-重新啟動 Node 後端。前端 `config.js` 不需要 Google 設定，Secret 不可放進前端。先用喜帖填一筆明確標示「測試」的回覆，確認 Google 表單和試算表都收到資料；再用一張小照片測試 Drive 連結可由新人帳號開啟、登出後無法存取。實際 Google 帳號、配額和部署權限必須在完成部署後驗收。
+## 選用後端模式
 
-## 保存與重試
+如要保留本機回覆備份與照片，才將 `INVITATION.submissionMode` 改為 `backend`，並透過 HTTP 啟動 Node 後端。此模式仍不需要 Apps Script。照片保存於 `DATA_DIR/rsvps/<UUID>/`，不會傳入 Google 表單。以下流程僅適用此選用模式：
 
-- 本機紀錄與照片維持在 `DATA_DIR/rsvps/<UUID>/`。雲端確認後另外保存 `google-forms.json`，不刪除本機資料。
-- 啟用 Google 同步時，只有 Google 回傳有效回覆編號後，喜帖才顯示送出成功。若同步失敗，後端回覆 HTTP 502，前端保留內容；再次寄出沿用原編號，不重複建立本機紀錄、Drive 照片或 Google 回覆。
-- 在專案根目錄執行 `node backend/sync-invitations.js` 可補同步既有與中斷的回覆，也可在網路恢復後重跑；此指令會將尚未同步的歷史回覆與照片送到目前設定的 Google 目的地，請先確認設定。已確認同步到同一部署的回覆會跳過。
-- 目前採送出時同步與手動補同步，沒有背景重試排程。Google 中斷時，賓客會看到待重試訊息，本機仍保有資料。
-- 所有照片每次只傳送一張，最多三張、每張 10 MB；沒有改用 Google 表單原生檔案上傳題。原圖保存在獨立私人 Drive 資料夾，表單內保存可點擊連結；不進公開婚禮相簿，也不進人臉分析。
-- 同步兩個環境或更換 Google 目的地前，先確認想使用的表單。不同 Apps Script 專案會建立不同資源。
-- Google Apps Script 使用帳號配額；程式提交的回覆不會觸發一般表單提交觸發器，若日後要通知郵件需另外設計。
+1. 先保存本機回覆，再讀取 Google 表單並驗證六題的 ID、標題、類型與單選值。
+2. 取得表單當次提交資訊，將欄位直接 POST 到表單本身的 `formResponse` 網址。
+3. Google 回傳「您的回覆已記錄」等確認訊息後，才顯示「已送達 Google 表單」，並將確認紀錄寫入 `google-forms.json`。僅 HTTP 200 或返回填寫頁不算成功。
+4. 相同回覆編號的已確認送出會直接沿用結果；同時點擊也只會提交一次。
+5. 如果 POST 後網路中斷，無法分辨 Google 是否已收件，紀錄會標記 `uncertain`。系統不會自動重送這一筆，避免重複登記；請新人到試算表用訊息中的回覆編號核對。也不會把不確定狀態顯示為成功。
 
-未設定兩個環境變數時，維持原本僅本機保存。只填其中一項或部署網址格式錯誤時，後端拒絕啟動，避免誤以為 Google 同步已啟用。
+送出前無法連線或欄位檢查失敗時，可在修復後重試。`node backend/sync-invitations.js` 可補提交本機尚未確認的歷史回覆；執行前須確認目的表單與要補送的歷史資料。`sending`／`uncertain` 紀錄會停止重送，需人工核對。沒有背景排程。
 
-## 驗證
+兩種模式皆使用 Google 公開填寫頁的網頁提交流程。Google 修改流程或新人更換題目時，需重驗欄位對照；後端模式會先檢查題目，靜態模式無法直接確認 Google 接受或拒絕結果。
 
-在專案根目錄執行：
+僅離線開發可在 `.env` 設 `WEDDING_GOOGLE_FORMS_ENABLED=false`，此時只存本機，正式使用請保持預設啟用。舊的 `WEDDING_GOOGLE_FORMS_URL` 與 `WEDDING_GOOGLE_FORMS_SECRET` 已不使用，可自行移除。
+
+## 測試
 
 ```bash
 node backend/tests/invitations.mjs
+node backend/tests/invitation-static.mjs
 node backend/tests/google-forms.mjs
-node backend/tests/google-forms-script.mjs
 node backend/tests/frontend-api.mjs
 ```
 
-Google 整合測試使用模擬服務，不會登入或修改 Google 帳號。
+以上測試不會實際提交 Google 表單，涵蓋初始 iframe 不觸發完成、背景目標、逾時與無法提交等行為。實際驗收可由喜帖送一筆明確標示「串接測試」的資料，確認主頁網址不變且顯示 alert，再到試算表核對。自動化瀏覽器不允許操作 file 協定，所以雙擊開檔情境未由自動化直接驗證。
 
-## 官方依據
+原生表單可以跨來源提交的依據：[MDN CORS 說明](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS)。
 
-- [Forms API 的回覆介面](https://developers.google.com/workspace/forms/api/reference/rest/v1/forms.responses)目前只提供 get／list，因此使用 [Apps Script FormResponse.submit](https://developers.google.com/apps-script/reference/forms/form-response#submit()) 寫入回覆。
-- [Apps Script 網頁應用程式與部署身分](https://developers.google.com/apps-script/guides/web)。
-- [Form.setDestination](https://developers.google.com/apps-script/reference/forms/form#setDestination(DestinationType,String)) 與 [每人限填一次的限制](https://developers.google.com/apps-script/reference/forms/form#setLimitOneResponsePerUser(Boolean))。
-- [程式操作不觸發一般可安裝觸發器](https://developers.google.com/apps-script/guides/triggers/installable#restrictions)。
+iframe 載入事件不保證成功的依據：[MDN iframe 的 load／error 行為](https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement#error_and_load_event_behavior)。

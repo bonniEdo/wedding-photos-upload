@@ -5,7 +5,7 @@ require('dotenv').config({path:path.join(__dirname,'.env')});
 async function main() {
   const data=path.resolve(process.env.DATA_DIR||path.join(__dirname,'data'));
   const googleForms=require('./google-forms')({data});
-  if (!googleForms.enabled) throw new Error('請先設定 WEDDING_GOOGLE_FORMS_URL 與 WEDDING_GOOGLE_FORMS_SECRET。');
+  if (!googleForms.enabled) throw new Error('Google 表單提交已停用，請確認 WEDDING_GOOGLE_FORMS_ENABLED。');
   let directories;
   try {directories=await fs.readdir(path.join(data,'rsvps'));} catch(error) {if(error.code!=='ENOENT')throw error;directories=[];}
   let done=0,failed=0;

@@ -23,7 +23,9 @@ window.WEDDING_CONFIG={
     venueNote:'把這一天空下來，交通資訊將隨正式喜帖提供。',
     // 填入正式地址後顯示 Google Maps 交通連結。
     mapsQuery:'',
-    // Google 表單填寫入口；自動同步仍須設定後端的 Apps Script 部署網址與 Secret。
+    // google-form：瀏覽器原生提交，不需要後端；backend：選用原本 Node API（含照片）。
+    submissionMode:'google-form',
+    // 原生提交會前往這份 Google 表單的確認頁，沿用已連動的試算表。
     googleFormUrl:'https://docs.google.com/forms/d/e/1FAIpQLSdkKuTSGS_u79FWXt1khwJmPGU2kSHNyYj_vrZDTjfjGS4UZg/viewform',
   },
 };

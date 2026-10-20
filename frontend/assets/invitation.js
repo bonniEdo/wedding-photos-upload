@@ -59,6 +59,14 @@
   });
 
   const form = $('rsvp-form');
+  const nativeSubmission = config.submissionMode !== 'backend';
+  if (nativeSubmission) {
+    document.querySelector('.memory-field').hidden = true;
+    $('memory-photos').disabled = true;
+    $('static-photo-note').hidden = false;
+  } else {
+    $('submission-note').textContent = '回覆與祝福將送至 Google 表單，照片由新人另外留存。';
+  }
   let photos = [], previewUrls = [], submitting = false, requestId = null;
   function syncVegetarians() {
     const previous = Number($('vegetarian-count').value);
@@ -122,6 +130,37 @@
     if (!$('guest-name').value.trim()) {$('guest-name').setCustomValidity('請留下你的姓名。');$('guest-name').reportValidity();return;}
     const data = new FormData(form);
     const attending = data.get('attendance') === 'yes';
+    if (nativeSubmission) {
+      const controls = [...form.querySelectorAll('input,select,textarea,button')];
+      const disabled = controls.map(control => control.disabled);
+      try {
+        if (navigator.onLine === false) throw new Error('目前沒有網路連線，回覆尚未寄出，請連上網路後再試。');
+        const submission = window.InvitationGoogleForm.build({
+          guestName:data.get('guestName'), attending,
+          guestCount:data.get('guestCount'), vegetarianCount:data.get('vegetarianCount'),
+          childSeats:data.get('childSeats'), dietNotes:data.get('dietNotes'), message:data.get('message'),
+        },config.googleFormUrl || window.InvitationGoogleForm.url);
+        submitting = true;
+        controls.forEach(control => { control.disabled = true; });
+        $('submit-button').textContent = '正在寄出你的心意…';
+        $('form-status').textContent = '回覆傳送中，請稍候…';
+        await window.InvitationGoogleForm.sendInBackground(submission);
+        $('submit-button').textContent = '回覆已送出';
+        $('form-status').textContent = '回覆已送出，請以新人確認為準。如需修改，請聯絡新人。';
+        window.alert('謝謝你的心意！回覆已送出，請以新人確認為準。');
+      } catch (error) {
+        if (!error.submitted) {
+          submitting = false;
+          controls.forEach((control,index) => { control.disabled = disabled[index]; });
+          $('submit-button').textContent = '寄出回覆與祝福 ↗';
+        } else {
+          $('submit-button').textContent = '送達狀態待確認';
+        }
+        $('form-status').textContent = error.message; $('form-status').focus();
+        window.alert(error.message);
+      }
+      return;
+    }
     requestId ||= newId(); data.set('requestId',requestId);
     data.set('guestName',$('guest-name').value.trim());
     if (attending) photos.forEach(file => data.append('photos',file));
@@ -133,11 +172,16 @@
     try {
       const response = await window.WeddingAPI.request('/api/invitations/rsvp',{method:'POST',body:data,signal:AbortSignal.timeout(120000)});
       const result = await response.json().catch(() => null);
+      if (result?.code === 'GOOGLE_FORMS_UNCERTAIN') {
+        $('form-status').textContent = `${result.message} 回覆編號：${requestId}`;
+        $('form-status').focus();
+        return;
+      }
       if (!response.ok || !result?.ok) throw new Error(result?.message || '回覆尚未送出，請稍後重試。');
       $('success-message').textContent = attending ? `謝謝你，${data.get('guestName')}！期待在這個好日子，和你一起笑、一起慶祝。` : `謝謝你，${data.get('guestName')}。雖然這次無法相聚，你的祝福依然讓這一天更加完整。`;
       $('success-summary').textContent = attending ? `已登記 ${data.get('guestCount')} 位出席・${data.get('vegetarianCount')} 位素食${Number(data.get('childSeats'))?`・${data.get('childSeats')} 張兒童座椅`:''}${photos.length?`・${photos.length} 張共同回憶`:''}` : '已記錄無法出席，並為你收藏這份心意。';
       $('receipt').textContent = `回覆編號 ${result.id.slice(0,8)}`;
-      if (result.googleForms?.synced) $('receipt').textContent += ' · 回覆已同步';
+      if (result.googleForms?.synced) $('receipt').textContent += ' · 已送達 Google 表單';
       form.hidden = true; $('success-panel').hidden = false; $('success-panel').focus();
       previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; photos = [];
     } catch (error) {

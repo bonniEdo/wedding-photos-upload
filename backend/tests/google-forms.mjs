@@ -4,46 +4,56 @@ import {mkdtemp,writeFile,mkdir,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
-const require=createRequire(import.meta.url);
-const createSync=require('../google-forms');
+const require=createRequire(import.meta.url),createSync=require('../google-forms'),config=require('../google-form-config');
 const data=await mkdtemp(path.join(tmpdir(),'wedding-google-test-'));
-const url='https://script.google.com/macros/s/test_deployment/exec',secret='test-only-secret-'.repeat(3);
-async function seed() {
+function formHTML(fields=config.fields) {
+  const questions=Object.values(fields).map(field=>{
+    const item=[123,field.title,null,field.type,[[Number(field.id),field.type===2?[['是'],['否']]:null,false]]];
+    const metadata='%.@.'+JSON.stringify([item,'i1','i2']).slice(1);
+    return `<div data-params="${metadata.replaceAll('"','&quot;')}"></div>`;
+  }).join('');
+  return `<form method="POST" action="${config.url.replace('/viewform','/formResponse')}">${questions}<input name="fvv" value="1"><input name="pageHistory" value="0"><input name="fbzx" value="test-token"></form>`;
+}
+const response=(html,status=200)=>({ok:status>=200&&status<300,status,text:async()=>html});
+const confirmation='<html><div class="vHW8K">我們已經收到您回覆的表單。</div></html>';
+async function seed(overrides={}) {
   const id=randomUUID(),dir=path.join(data,'rsvps',id);await mkdir(dir,{recursive:true});
-  const bytes=Buffer.from('test image contents'),sha256=createHash('sha256').update(bytes).digest('hex');
-  await writeFile(path.join(dir,'memory-1.png'),bytes);
-  const record={id,guestName:'同步測試',attending:true,guestCount:2,vegetarianCount:1,dietNotes:'',message:'祝福',fingerprint:sha256,photos:[{file:'memory-1.png',originalName:'回憶.png',mimeType:'image/png',size:bytes.length,sha256}]};
+  const record={id,guestName:'同步測試',attending:true,guestCount:3,childSeats:1,vegetarianCount:2,dietNotes:'蛋奶素',message:'祝福',photos:[{file:'memory-1.png'}],...overrides};
+  record.fingerprint=createHash('sha256').update(JSON.stringify(record)).digest('hex');
   await writeFile(path.join(dir,'response.json'),JSON.stringify(record));return record;
 }
 try {
-  assert.equal(createSync({data,url:'',secret:''}).enabled,false);
-  assert.throws(()=>createSync({data,url,secret:''}));
-  assert.throws(()=>createSync({data,url:'',secret}));
-  for(const bad of ['http://script.google.com/macros/s/id/exec','https://attacker.invalid/macros/s/id/exec','https://script.google.com/macros/s/id/dev',url+'?foo=bar','https://user:pass@script.google.com/macros/s/id/exec'])assert.throws(()=>createSync({data,url:bad,secret}));
+  assert.equal(createSync({data,enabled:false}).enabled,false);
+  for(const url of ['http://docs.google.com/forms/d/e/id/viewform','https://attacker.invalid/forms/d/e/id/viewform','https://user:pass@docs.google.com/forms/d/e/id/viewform',config.url+'?foo=bar'])assert.throws(()=>createSync({data,config:{...config,url}}));
   const record=await seed(),calls=[];
-  const sync=createSync({data,url,secret,fetchImpl:async(target,options)=>{
-    assert.equal(target,url);const body=JSON.parse(options.body);calls.push(body);assert.equal(body.secret,secret);
-    return {ok:true,json:async()=>body.action==='upload'?{ok:true,id:body.id,fileId:'private-photo-id'}:{ok:true,id:body.id,responseId:'google-response-id'}};
-  }});
+  const sync=createSync({data,fetchImpl:async(url,options)=>{calls.push({url,options});return response(options.method==='POST'?confirmation:formHTML());}});
   const [one,two]=await Promise.all([sync.sync(record.id),sync.sync(record.id)]);
-  assert.equal(one.synced,true);assert.equal(two.synced,true);assert.equal(calls.length,2,'concurrent requests share upload and submit');
-  assert.equal(calls[0].action,'upload');assert.equal(calls[0].photo.sha256,record.photos[0].sha256);
-  assert.equal(calls[1].record.photos[0].fileId,'private-photo-id');
+  assert(one.synced && two.synced);assert.equal(calls.length,2,'concurrent requests share one GET and POST');
+  const submitted=new URLSearchParams(calls[1].options.body);
+  for(const [key,value] of Object.entries({guestName:'同步測試',attending:'是',guestCount:'3',childSeats:'1',vegetarian:'是'}))assert.equal(submitted.get('entry.'+config.fields[key].id),value);
+  const message=submitted.get('entry.'+config.fields.message.id);
+  assert(message.includes('祝福'));assert(message.includes('素食人數：2 位'));assert(message.includes('蛋奶素'));assert(message.includes(record.id));assert(message.includes('1 張'));
+  assert.equal(submitted.get('fbzx'),'test-token');
   const state=JSON.parse(await readFile(path.join(data,'rsvps',record.id,'google-forms.json'),'utf8'));
-  assert.equal(state.responseId,'google-response-id');assert(!JSON.stringify(state).includes(secret));
-  await createSync({data,url,secret,fetchImpl:()=>{throw Error('should not run');}}).sync(record.id);
-  const pending=await seed();let fail=true,remoteSubmissions=0;
-  const remote=createSync({data,url,secret,fetchImpl:async(target,options)=>{
-    const body=JSON.parse(options.body);
-    if(body.action==='submit') {remoteSubmissions++;if(fail){fail=false;throw Error('lost confirmation '+secret);}}
-    return {ok:true,json:async()=>({ok:true,id:body.id,fileId:'photo',responseId:'reconciled-response'})};
-  }});
-  await assert.rejects(remote.sync(pending.id),error=>error.status===502 && !error.message.includes(secret));
-  assert.equal((await remote.sync(pending.id)).synced,true);assert.equal(remoteSubmissions,2,'retry reaches remote reconciliation');
-  const malformed=await seed();
-  for (const result of [{ok:false},{ok:true,id:malformed.id,fileId:'../../bad'},{ok:true,id:'wrong',fileId:'photo'}]) {
-    const broken=createSync({data,url,secret,fetchImpl:async()=>({ok:true,json:async()=>result})});
-    await assert.rejects(broken.sync(malformed.id),error=>error.status===502);
-  }
-  console.log('PASS: Google endpoint/secret validation, private per-photo delivery, concurrent sync, persisted receipts, retry reconciliation, remote errors and secret-safe messages.');
+  assert.equal(state.status,'confirmed');assert(!state.responseId,'does not invent a Google response ID');
+  await createSync({data,fetchImpl:()=>{throw Error('should not run');}}).sync(record.id);
+  const declined=await seed({attending:false,guestCount:0,childSeats:0,vegetarianCount:0,dietNotes:'',photos:[]});
+  await createSync({data,fetchImpl:async(url,options)=>{
+    if(options.method==='POST'){const body=new URLSearchParams(options.body);assert.equal(body.get('entry.'+config.fields.attending.id),'否');assert.equal(body.get('entry.'+config.fields.vegetarian.id),'否');assert.equal(body.get('entry.'+config.fields.guestCount.id),'0');}
+    return response(options.method==='POST'?confirmation:formHTML());
+  }}).sync(declined.id);
+  const pending=await seed();let posts=0;
+  const uncertain=createSync({data,fetchImpl:async(url,options)=>{if(options.method==='POST'){posts++;throw Error('connection lost');}return response(formHTML());}});
+  await assert.rejects(uncertain.sync(pending.id),error=>error.code==='GOOGLE_FORMS_UNCERTAIN');
+  await assert.rejects(uncertain.sync(pending.id),error=>error.code==='GOOGLE_FORMS_UNCERTAIN');assert.equal(posts,1,'unknown delivery must not blindly resubmit');
+  const invalid=await seed();
+  const changed={...config.fields,guestName:{...config.fields.guestName,id:'999'}};
+  await assert.rejects(createSync({data,fetchImpl:async(url,options)=>{assert.notEqual(options.method,'POST');return response(formHTML(changed));}}).sync(invalid.id),error=>error.code==='GOOGLE_FORMS_PENDING');
+  const rejected=await seed();
+  await assert.rejects(createSync({data,fetchImpl:async(url,options)=>response(options.method==='POST'?'<form>error</form>':formHTML())}).sync(rejected.id),error=>error.code==='GOOGLE_FORMS_PENDING');
+  const generic=await seed();
+  await assert.rejects(createSync({data,fetchImpl:async(url,options)=>response(options.method==='POST'?'<html>OK</html>':formHTML())}).sync(generic.id),error=>error.code==='GOOGLE_FORMS_UNCERTAIN');
+  const scriptOnly=await seed();
+  await assert.rejects(createSync({data,fetchImpl:async(url,options)=>response(options.method==='POST'?'<script>"我們已經收到您回覆的表單"</script><p>error</p>':formHTML())}).sync(scriptOnly.id),error=>error.code==='GOOGLE_FORMS_UNCERTAIN');
+  console.log('PASS: direct Google form fields and tokens, attendance/decline, dietary notes, concurrent/repeated submissions, durable confirmation, changed schema, validation rejection and no duplicate POST after uncertain delivery.');
 } finally {await rm(data,{recursive:true,force:true});}

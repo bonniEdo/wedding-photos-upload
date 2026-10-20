@@ -181,6 +181,8 @@ Google Drive 匯入依官方 files.list 分頁及 files.get `alt=media` 下載�
 
 ## 電子喜帖回覆
 
+喜帖預設 `submissionMode:'google-form'`，由瀏覽器原生表單提交至 Google，**不呼叫以下 API**。以下為選用 `submissionMode:'backend'` 時保留的回覆與照片留存介面。兩種模式共用 `frontend/assets/invitation-google-form.js` 中的 Google 欄位定義。
+
 `POST /api/invitations/rsvp`，使用 `multipart/form-data`；沿用 `frontend/assets/api-client.js` 的後端網址與 CORS 設定。
 
 | 欄位 | 說明 |
@@ -195,8 +197,10 @@ Google Drive 匯入依官方 files.list 分頁及 files.get `alt=media` 下載�
 | `message` | 兩種出席狀態都可填，最多 2000 字元 |
 | `photos` | 出席者選填，最多 3 張、每張 10 MB，JPG／PNG／WebP；檢查檔案標頭與 MIME |
 
-成功為 HTTP 201：`{"ok":true,"id":"回覆 UUID","googleForms":{"enabled":false}}`。啟用 Google 表單同步後，成功時 `googleForms` 為 `{"enabled":true,"synced":true}`。無法出席時後端將人數與素食歸零、清除飲食備註，若攜帶照片則拒絕。驗證失敗為 400、相同識別碼但不同內容為 409、同時接收超過 4 筆為 429、儲存失敗為 500。
+成功為 HTTP 201：`{"ok":true,"id":"回覆 UUID","googleForms":{"enabled":true,"synced":true}}`，表示 Google 表單已回傳收件確認。只有離線測試明確停用 Google 時才回傳 `googleForms:{"enabled":false}`。無法出席時後端將人數、素食與兒童座椅歸零、清除飲食備註，若攜帶照片則拒絕。驗證失敗為 400、相同識別碼但不同內容為 409、同時接收超過 4 筆為 429、儲存失敗為 500。
 
 紀錄與照片以一個資料夾提交，保存於 `DATA_DIR/rsvps/<UUID>/`，回覆為 `response.json`，不提供公開讀取端點。此流程不會加入公開相簿或人臉分析。沿用本專案單一 Node 程序的部署方式。
 
-Google 表單同步由 `WEDDING_GOOGLE_FORMS_URL`（Apps Script `/exec` 部署網址）與 `WEDDING_GOOGLE_FORMS_SECRET` 啟用，見 `integrations/google-forms/README.md`。本機保存後依序上傳私人照片並提交 Google 回覆，確認成功後寫入同一資料夾的 `google-forms.json`。Google 未確認時回傳 HTTP 502；一般連線或 Google 拒絕的錯誤包含 `{"ok":false,"code":"GOOGLE_FORMS_PENDING","localSaved":true,"message":"…"}`。沿用同一識別碼與內容重試可補同步，Google 端也會核對識別碼與校驗碼來避免重複回覆。可用 `node backend/sync-invitations.js` 補同步歷史紀錄；目前沒有背景同步排程。
+預設直接提交 `backend/google-form-config.js` 指定的公開 Google 表單，不使用 Apps Script 或 Secret。後端先讀取表單、核對六題並取得當次隱藏欄位，再 POST `application/x-www-form-urlencoded` 到實際 `formResponse` 網址。素食人數、飲食備註與照片張數附在「給新人的話」中；照片本身只存本機。Google 回傳明確收件確認後才將 `google-forms.json` 標記為 `confirmed`，不捏造 Google 回覆 ID。
+
+送出前無法連線或 Google 拒絕時為 HTTP 502、`code:GOOGLE_FORMS_PENDING`、`localSaved:true`。POST 後連線中斷或回應不明時為 HTTP 502、`code:GOOGLE_FORMS_UNCERTAIN`、`localSaved:true`，必須到 Google 試算表用回覆編號核對，系統不會自動重送這筆。已確認的同一回覆編號不重送；Google 本身沒有此自訂編號的去重保證。可執行 `node backend/sync-invitations.js` 補送尚未提交的歷史紀錄；它同樣不會重送不確定紀錄，目前沒有背景排程。見 `integrations/google-forms/README.md`。
