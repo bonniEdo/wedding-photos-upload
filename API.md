@@ -178,3 +178,22 @@ Google Drive 匯入依官方 files.list 分頁及 files.get `alt=media` 下載�
 `GET /api/photos/:id/original` 由後端串流讀取 Google Drive 原圖，Content-Disposition 為下載，不將原圖重新落盤。不存在 404、尚未備份 409、下載忙碌 429（Retry-After）、雲端暫不可用 503。下載連結可用新視窗以免取代相簿。
 
 本機 originals 為暫存：雲端成功 + face_index 持久化 + Drive 原圖確認後清除；保留縮圖、預覽與人物索引。KEEP_LOCAL_ORIGINALS=true 可關閉清理。雲端刪除目前不自動刪除人物索引，下載可能失敗，重新主動上傳會建立新的照片。
+
+## 電子喜帖回覆
+
+`POST /api/invitations/rsvp`，使用 `multipart/form-data`；沿用 `frontend/assets/api-client.js` 的後端網址與 CORS 設定。
+
+| 欄位 | 說明 |
+| --- | --- |
+| `requestId` | UUID v4，同一次送出重試保留原值；修改內容後使用新值 |
+| `guestName` | 必填，最多 80 字元 |
+| `attendance` | 必填，`yes` 或 `no` |
+| `guestCount` | 出席才需要，1–20 整數，包含本人 |
+| `vegetarianCount` | 出席才需要，0–出席人數的整數 |
+| `dietNotes` | 選填，最多 300 字元 |
+| `message` | 兩種出席狀態都可填，最多 2000 字元 |
+| `photos` | 出席者選填，最多 3 張、每張 10 MB，JPG／PNG／WebP；檢查檔案標頭與 MIME |
+
+成功為 HTTP 201：`{"ok":true,"id":"回覆 UUID"}`。無法出席時後端將人數與素食歸零、清除飲食備註，若攜帶照片則拒絕。驗證失敗為 400、相同識別碼但不同內容為 409、同時接收超過 4 筆為 429、儲存失敗為 500。
+
+紀錄與照片以一個資料夾提交，保存於 `DATA_DIR/rsvps/<UUID>/`，回覆為 `response.json`，不提供公開讀取端點。此流程不會加入公開相簿、Drive 備份或人臉分析。沿用本專案單一 Node 程序的部署方式。

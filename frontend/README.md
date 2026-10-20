@@ -13,6 +13,7 @@ node dev-server.mjs
 開啟 `http://localhost:5173`。後端需啟動 3000；可從根目錄 `API.md` 查看串接規格。
 
 - `photos.html`：照片上傳。
+- `invitation.html`：溫馨風格電子喜帖、婚宴資訊與出席回覆。
 - `people.html`：太空背景的蒲公英人物球、人物列表、相簿、自拍搜尋。
 - `admin-people.html`：管理登入、雲端同步、人物合併／復原。
 - `assets/*.css`：各頁樣式。
@@ -21,6 +22,16 @@ node dev-server.mjs
 - `config.js`：修改 API_BASE，正式部署接後端 HTTPS 網址。
 
 可以自由換框架或重新設計 UI，維持 API 欄位與上傳每批 5 張即可；選取上限 20 張。前端不要加入 Google 憑證、管理密碼或資料庫設定。
+
+## 電子喜帖
+
+開啟 `http://localhost:5173/invitation.html`（Node 後端亦可用 `http://localhost:3000/invitation.html`）。在 `config.js` 的 `INVITATION` 修改新人姓名、日期、迎賓／開席／結束時間、回覆日期、會館與地址；確認資料後將 `isSample` 改為 `false`。`mapsQuery` 填入正式地址才會顯示 Google Maps 連結。加入行事曆使用台灣時間，範例資料產生的行程會標記「範例」。
+
+選擇出席才展開出席人數（含本人，1–20 位）、素食人數、飲食備註與選填照片。照片最多 3 張，每張 10 MB，支援 JPG／PNG／WebP，可預覽、移除與拖放。無論是否出席，都可填寫給新人的話。
+
+回覆須啟動 Node 後端，經 `POST /api/invitations/rsvp` 存到 `DATA_DIR/rsvps/<回覆 UUID>/response.json`，照片放在同一個私有資料夾，不進入公開相簿、人臉分析或 Drive 備份流程。請將 `rsvps/` 一起備份；目前由新人從伺服器讀取，未提供公開查詢介面或管理統計頁。前端確認後端儲存成功才會顯示送達；失敗時保留填寫內容，同一份回覆的重試不重複建檔。既有 Node 服務需重新啟動才能載入新增 API。
+
+驗證：`node backend/tests/invitations.mjs`（於專案根目錄執行；使用隔離的暫存資料，不會更動正式回覆）。
 
 ## 婚禮照片星球
 

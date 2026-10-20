@@ -15,4 +15,4 @@ const server=http.createServer(async(req,res)=>{
   res.end(await fs.readFile(target));
  }catch{res.writeHead(404).end();}
 });
-server.listen(5173,'0.0.0.0',()=>console.log('Frontend: http://localhost:5173/photos.html\nPeople: http://localhost:5173/people.html\nAdmin: http://localhost:5173/admin-people.html'));
+server.listen(5173,'0.0.0.0',()=>console.log('Frontend: http://localhost:5173/photos.html\nInvitation: http://localhost:5173/invitation.html\nPeople: http://localhost:5173/people.html\nAdmin: http://localhost:5173/admin-people.html'));

@@ -174,6 +174,7 @@ app.use(cors({credentials:true,origin:(origin,cb)=>{
   const allowed=['http://localhost:'+PORT,'http://localhost:5173','http://127.0.0.1:5173',process.env.GITHUB_PAGES_ORIGIN,...(process.env.FRONTEND_ORIGINS||'').split(',')].map(s=>s?.trim()).filter(Boolean);
   cb(null,!origin||allowed.includes(origin));
 }}));
+app.use('/api/invitations',require('./invitations')({data:DATA}));
 require('./admin-auth')(app,{password:process.env.ADMIN_PASSWORD||'',
   secureCookie:process.env.ADMIN_COOKIE_SECURE==='true',faceURL:FACE_URL,driveSync,backupStatus});
 if(process.env.SERVE_FRONTEND!=='false') app.use(express.static(path.join(__dirname,'../frontend')));
