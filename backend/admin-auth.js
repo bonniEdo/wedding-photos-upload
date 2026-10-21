@@ -48,17 +48,29 @@ module.exports=function attachAdmin(app,{password,secureCookie,faceURL,driveSync
   app.post('/api/admin/logout',(req,res)=>{
     sessions.delete(req.adminSession);res.clearCookie('wedding_admin',{...cookieOptions,maxAge:undefined}).json({ok:true});
   });
-  async function forward(req,res,route){
+  async function forward(req,res,route,image=false){
     try{
       const options={method:req.method,headers:{'X-Admin-Key':internalKey},signal:AbortSignal.timeout(120000)};
       if(req.method==='POST'){options.headers['Content-Type']='application/json';options.body=JSON.stringify(req.body);}
       const upstream=await fetch(faceURL+route,options);
-      res.status(upstream.status).type('json').send(await upstream.text());
+      res.status(upstream.status).type(upstream.headers.get('content-type')||'application/json');
+      res.send(image?Buffer.from(await upstream.arrayBuffer()):await upstream.text());
     }catch(e){res.status(503).json({ok:false,message:'人臉服務暫時無法使用，請確認 Python 服務已啟動'});}
   }
   app.get('/api/admin/people',(req,res)=>forward(req,res,'/admin/people'));
   app.post('/api/admin/merge',express.json({limit:'16kb'}),(req,res)=>forward(req,res,'/admin/merge'));
   app.post('/api/admin/undo',express.json({limit:'8kb'}),(req,res)=>forward(req,res,'/admin/undo'));
+  app.get('/api/admin/face-reviews',(req,res)=>{
+    const params=new URLSearchParams();
+    for(const key of ['kind','offset','limit'])if(typeof req.query[key]==='string')params.set(key,req.query[key]);
+    return forward(req,res,'/admin/face-reviews?'+params);
+  });
+  app.post('/api/admin/face-reviews/:id/resolve',express.json({limit:'16kb'}),(req,res)=>forward(req,res,'/admin/face-reviews/'+encodeURIComponent(req.params.id)+'/resolve'));
+  app.post('/api/admin/face-constraints/:id/revoke',express.json({limit:'8kb'}),(req,res)=>forward(req,res,'/admin/face-constraints/'+encodeURIComponent(req.params.id)+'/revoke'));
+  app.get('/api/admin/photos/:id/faces',(req,res)=>forward(req,res,'/admin/photos/'+encodeURIComponent(req.params.id)+'/faces'));
+  app.get('/api/admin/faces/:id/crop',(req,res)=>forward(req,res,'/admin/faces/'+encodeURIComponent(req.params.id)+'/crop',true));
+  app.post('/api/admin/faces/reassign',express.json({limit:'16kb'}),(req,res)=>forward(req,res,'/admin/faces/reassign'));
+  app.post('/api/admin/face-corrections/undo',express.json({limit:'8kb'}),(req,res)=>forward(req,res,'/admin/face-corrections/undo'));
   setInterval(()=>{
     const now=Date.now();for(const [id,expires] of sessions)if(expires<=now)sessions.delete(id);
   },60000).unref();
