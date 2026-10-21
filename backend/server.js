@@ -264,14 +264,17 @@ function searchAdmission(req,res,next) {
   res.once('finish',release);res.once('close',release);next();
 }
 app.post('/api/face/find',searchAdmission,queryUpload.single('file'),async(req,res)=>{
+  const disconnected=new AbortController();
+  const onClose=()=>{if(!res.writableEnded)disconnected.abort();};
+  res.once('close',onClose);
   try {
     if(!req.file) return res.status(400).json({ok:false,message:'請選擇自拍照'});
     const form=new FormData();
     form.append('file',new Blob([await fsp.readFile(req.file.path)],{type:req.file.mimetype}),req.file.originalname);
-    const upstream=await fetch(FACE_URL+'/find',{method:'POST',body:form,signal:AbortSignal.timeout(120000)});
+    const upstream=await fetch(FACE_URL+'/find',{method:'POST',body:form,signal:AbortSignal.any([AbortSignal.timeout(120000),disconnected.signal])});
     res.status(upstream.status).type('json').send(await upstream.text());
-  } catch(e) {res.status(503).json({ok:false,message:'分析服務暫時無法使用，請稍後再試'});}
-  finally {if(req.file) await fsp.unlink(req.file.path).catch(()=>{});}
+  } catch(e) {if(!res.destroyed)res.status(503).json({ok:false,message:'分析服務暫時無法使用，請稍後再試'});}
+  finally {res.off('close',onClose);if(req.file) await fsp.unlink(req.file.path).catch(()=>{});}
 });
 async function proxy(req,res,route) {
   try {

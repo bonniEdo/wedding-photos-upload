@@ -14,6 +14,7 @@ from fastapi import HTTPException
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'face-service'))
 from core import add_photo, atomic_json, empty_state, merge_people
 from face_state import face_map, revision
+from search_index import SearchCache
 
 
 class AdminAPITests(unittest.TestCase):
@@ -29,7 +30,7 @@ class AdminAPITests(unittest.TestCase):
         cls.directory.cleanup()
 
     def setUp(self):
-        self.app.state=empty_state()
+        self.app.state=empty_state();self.app.search_cache=SearchCache()
         f=lambda v,t:{'embedding':v,'thumbnail':t,'bbox':[10,10,20,20],'quality':100}
         self.photo_id='a'*64
         add_photo(self.app.state,self.photo_id,'a',[f([1,0],'a.jpg'),f([0,1],'b.jpg')])

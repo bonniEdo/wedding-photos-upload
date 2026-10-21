@@ -13,6 +13,7 @@ from matching import MatchConfig
 from face_state import face_id, face_map, latest_operation, revision
 from reviews import (build_reviews, face_view, fingerprint, operation_history, reassign_faces,
                      resolve_review, revoke_constraint, undo_correction)
+from search_index import SearchCache
 from typing import Literal
 
 BASE = Path(__file__).resolve().parent.parent
@@ -25,6 +26,9 @@ SEARCH_THRESHOLD = float(os.environ.get('SEARCH_THRESHOLD', '.30'))
 GROUP_MARGIN = float(os.environ.get('GROUP_MARGIN', '.06'))
 FACE_PIPELINE = os.environ.get('FACE_PIPELINE', 'legacy')
 GROUP_MODE = os.environ.get('GROUP_MODE', 'legacy')
+SEARCH_MODE = os.environ.get('FACE_SEARCH_MODE', 'vectorized')
+if SEARCH_MODE not in ('scalar', 'vectorized'):
+    raise ValueError('FACE_SEARCH_MODE must be scalar or vectorized')
 if FACE_PIPELINE not in ('legacy', 'shadow', 'enhanced') or GROUP_MODE not in ('legacy', 'shadow', 'enhanced'):
     raise ValueError('FACE_PIPELINE and GROUP_MODE must be legacy, shadow or enhanced')
 ENGINE_CONFIG = EngineConfig(max_pixels=int(os.environ.get('FACE_MAX_PIXELS', '60000000')),
@@ -48,6 +52,7 @@ stop = threading.Event()
 state = empty_state()
 detector = recognizer = None
 engine = None
+search_cache = SearchCache()
 review_cache_lock = threading.Lock()
 review_source = review_catalog = None
 lookup_cache_lock = threading.Lock()
@@ -111,7 +116,7 @@ def worker():
 
 @asynccontextmanager
 async def lifespan(app):
-    global state, detector, recognizer, engine
+    global state, detector, recognizer, engine, search_cache
     # OS lock is released even after a crash. JSON mode requires one process.
     guard = (DATA/'face-worker.lock').open('a+b')
     try:
@@ -123,6 +128,7 @@ async def lifespan(app):
             import fcntl
             fcntl.flock(guard.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         if STATE_PATH.exists(): state = json.loads(STATE_PATH.read_text(encoding='utf8'))
+        search_cache = SearchCache()
         models = BASE/'models'
         detector = cv2.FaceDetectorYN.create(str(models/'face_detection_yunet_2023mar.onnx'), '', (320,320), .9, .3, 5000)
         recognizer = cv2.FaceRecognizerSF.create(str(models/'face_recognition_sface_2021dec.onnx'), '')
@@ -144,7 +150,7 @@ def health():
                 'pending': len(ids-set(state['photos']))-failed, 'failed': failed,
                 'withoutFaces': sum(not p['faces'] for p in state['photos'].values()),
                 'partialPhotos': sum(p.get('analysis', {}).get('partial', False) for p in state['photos'].values()),
-                'facePipeline': FACE_PIPELINE, 'groupMode': GROUP_MODE}
+                'facePipeline': FACE_PIPELINE, 'groupMode': GROUP_MODE, 'searchMode': SEARCH_MODE}
 
 @app.get('/people')
 def people():
@@ -183,20 +189,27 @@ async def find(file: UploadFile=File(...), threshold: float=SEARCH_THRESHOLD):
     finally:
         await file.close()
     if len(raw)>MAX_BYTES: raise HTTPException(413, '照片最多 25 MB')
-    try: faces = await asyncio.to_thread(extract, raw)
+    try:
+        query = await asyncio.to_thread(analyze, raw)
+        faces = query.faces
     except Exception: raise HTTPException(400, '無法讀取照片，請換 JPG、PNG 或 HEIC')
     if not faces: raise HTTPException(400, '查不到人臉，請換一張清楚正面照')
     if len(faces)>1: raise HTTPException(400, '這張照片有多張人臉，請用單人照或自拍')
     def compare():
-        matches = []
         with state_lock:
-            for pid, p in state['photos'].items():
-                score = max((similarity(faces[0]['embedding'], f['embedding']) for f in p['faces']), default=-1)
-                if score>=threshold:
-                    matches.append({'id': pid, 'name': p['name'], 'score': round(score,4), 'url': f'/api/photos/{pid}/image'})
+            source = state
+        if SEARCH_MODE == 'vectorized':
+            return search_cache.get(source).search(faces[0]['embedding'], threshold)
+        matches = []
+        for pid, p in source['photos'].items():
+            score = max((similarity(faces[0]['embedding'], f['embedding']) for f in p['faces']), default=-1)
+            if score>=threshold:
+                matches.append({'id': pid, 'name': p['name'], 'score': round(score,4), 'url': f'/api/photos/{pid}/image'})
         matches.sort(key=lambda p:p['score'], reverse=True)
         return matches
-    return {'ok': True, 'threshold': threshold, 'matches': await asyncio.to_thread(compare)}
+    return {'ok': True, 'threshold': threshold, 'matches': await asyncio.to_thread(compare),
+            'searchMode': SEARCH_MODE, 'qualityLimited': not faces[0].get('quality_metrics', {}).get('sample_eligible', True),
+            'queryPartial': query.metadata.get('partial', False)}
 
 
 def require_admin(x_admin_key: str = Header(default='')):
