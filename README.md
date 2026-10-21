@@ -222,9 +222,51 @@ API 接收完成代表原圖與任務已暫存；前端會持續確認 Drive，�
 
 管理頁需 `ADMIN_PASSWORD`（至少 12 字元）。勾選 2 個以上頭貼，預覽照片後合併，選擇保留的頭貼。相簿照片去重，各組既有人臉樣本保留，補傳會繼續用這些樣本比對。
 
-可由最新合併開始復原。合併後新分析的照片留在當時選定的主相簿，不會刪除，也不會自動猜測要分回哪個舊頭貼。既有合併紀錄、舊相簿連結轉向與背景索引寫入保護保留。
+「人工複核」可查看可能重複人物、確認待確認人臉、略過建議，或記錄不同人並撤銷排除。從建議或相簿按「檢查人臉」，可看原照片中的框，選一張臉移到其他人物或拆成新人物；同圖其他人保持原歸屬。
+
+合併與人工校正共用由新到舊的復原順序。操作後新分析的照片留在當時的相簿，不會刪除，也不會自動猜測要分回哪個舊頭貼。既有合併紀錄、舊相簿連結轉向與背景索引寫入保護保留；移空的人物 ID 也保留，舊相簿網址仍可讀取空相簿。過期頁面會要求重新整理，網路重試不會重複套用操作。
 
 自拍搜尋預設 threshold=0.30；人物自動分組預設 0.50、差距 0.06，比搜尋保守。側臉、遮擋仍可能拆成多個頭貼，或誤分；手動合併無法保證不再出現新分組。
+
+搜尋預設 `FACE_SEARCH_MODE=vectorized`：短鎖取得快照，在鎖外精確比對全部觀測；保留每張照片最高相似度、原門檻及排序，不以人物分組過濾。`scalar` 可切回逐臉計算。賓客可取消搜尋；模糊／部分偵測會顯示換照提示，自拍不加入人物庫。操作、相容性及測試結果見 [P3–P4 實作說明](docs/face-recognition-p3-p4.md)。
+
+### 本機人臉改善與離線評估（P0–P2）
+
+新增原尺寸分區偵測、品質資訊、整圖候選配對及多樣代表樣本。預設 `FACE_PIPELINE=legacy`、`GROUP_MODE=legacy`，維持原有偵測與分組；舊人物 ID、相簿連結、頭貼選擇與合併歷史可繼續使用，不會自動重分析舊照。
+
+先用獨立評估目錄比較，不必啟動服務：
+
+```bash
+uv run --project backend --locked python backend/face-service/evaluate_faces.py init --photos backend/sample_photos --manifest face-evaluation/samples-manifest.json
+uv run --project backend --locked python backend/face-service/evaluate_faces.py run --manifest face-evaluation/samples-manifest.json --output face-evaluation/run-001 --split calibration
+```
+
+`face-evaluation/` 已排除 Git。第一次建立的是**未標註**清單，報告不會宣稱辨識準確率；人工確認人臉框、匿名人物標籤及照片分組後，才計算品質指標。輸出目錄必須是新的，工具會拒絕寫入正式 DATA_DIR、模型或原始照片目錄。
+
+需要比較服務的新進照片時，可在 `backend/.env` 設 `FACE_PIPELINE=shadow`、`GROUP_MODE=shadow` 後重啟 Python；正式相簿仍使用舊策略，索引只增加對照資訊。shadow 會額外執行分區偵測，增加分析時間；自拍不執行 shadow 工作。驗收後才考慮各別切為 `enhanced`。
+
+新分析先保存非公開 `face_crops/`、頭貼與預覽，再提交索引。超出分區限制會明確標為部分偵測；舊原圖清理條件仍沿用 Drive 已確認及索引已落盤。P0–P2 階段的操作與測試結果見 [P0–P2 實作說明](docs/face-recognition-p0-p2.md)。
+
+### 舊照片回填（P5）
+
+先停止 Node／Python 寫入服務，以維護工具備份完整 DATA_DIR 和設定、驗證並演練還原，再追加穩定人臉 ID。請使用新的備份與還原測試目錄；若有 credentials.json／token.json，另以 `--config` 加入現存檔案。
+
+```bash
+backend/.venv/bin/python backend/face-service/maintain_faces.py audit --data backend/data
+backend/.venv/bin/python backend/face-service/maintain_faces.py backup --data backend/data --output data-backup-before-p5 --config backend/.env --config frontend/config.js
+backend/.venv/bin/python backend/face-service/maintain_faces.py restore-test --backup data-backup-before-p5 --output /tmp/wedding-restore-test
+backend/.venv/bin/python backend/face-service/maintain_faces.py migrate --data backend/data --backup data-backup-before-p5
+backend/.venv/bin/python backend/face-service/backfill_run.py start --data backend/data
+backend/.venv/bin/python backend/face-service/backfill_run.py run --data backend/data
+```
+
+離線回填預設只讀本機；加 `--allow-drive` 才讀取現有 Drive 憑證，缺憑證不開啟互動授權。線上則使用已連線 Node 的原圖來源。下載逐一進行，校驗來源內容與雲端前後版本；不改 `originalReleased`、原上傳任務或同步紀錄，也不把預覽當高解析原圖。
+
+啟動服務後，管理頁「舊照片補分析」可開始／繼續、暫停、重試及查看進度。新偵測先存為私有候選；確認選定漏臉才追加為待確認人物，再透過 P3 校正／合併確認歸屬。舊臉保留位置、embedding、歸屬、主頭貼與歷史；補充品質／裁切放在獨立 metadata。追加人臉可從統一整理紀錄復原。
+
+本輪已對 347 張本機原圖完成回填，85 個人物及原 298 張臉保持不變，另有 59 張漏臉候選待人工複核。備份位置、還原演練與測試結果見 [P5 實作與回填報告](docs/face-recognition-p5.md)。正式佇列已暫停，未啟動正式服務。
+
+各步驟的 commit、獨立版本驗證、資料保留與完整測試指令，見 [P0–P5 分階段提交紀錄](docs/face-recognition-commit-log.md)。
 
 ## 登入與部署
 
@@ -246,10 +288,20 @@ node tests/drive-sync.mjs
 node tests/cloud-storage.mjs
 node tests/backup-status.mjs
 node tests/frontend-api.mjs
+node tests/face-review-api.mjs
+node tests/selfie-cancel.mjs
+node tests/selfie-ui.mjs
+node tests/backfill-originals.mjs
+node tests/backfill-source-api.mjs
+node tests/backfill-api.mjs
 node tests/load-upload.mjs
 ```
 
 涵蓋合併／復原／補傳與去重、管理驗證、跨來源標頭與 Bearer 登入、Drive 分頁與子資料夾、下載重試／重啟／大小限制／範圍變更，以及 80 個並行小型上傳請求。
+
+P3–P4 另測單臉校正／不同人約束、舊合併歷史、原子提交失敗、revision／重試收據、向量搜尋等價、取消與斷線清理。`face-review-api.mjs` 使用 `backend/.venv/bin/python`、本機 ONNX 模型及 `sample_photos` 的單臉裁切，啟動暫存 Node／Python 服務；不使用正式索引或雲端帳號。
+
+P5 另測完整備份／還原、追加式遷移、EXIF／舊預覽座標對應、續跑／暫停、原圖缺失／版本異動、人工追加與復原、私有候選及產物損毀。`backfill-api.mjs` 使用實際本機模型與暫存 Node／Python 服務；Drive 版本測試使用模擬 API。
 
 Drive 測試使用模擬 Google API，沒有登入你的真實帳號；真實 Drive 同步、人臉模型與婚宴網路吞吐仍需在你的主機驗收。可先用少量代表性照片測試，確認「同步匯入 → 人臉分析 → 頭貼／自拍搜尋」完整流程。
 

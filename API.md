@@ -62,6 +62,16 @@ const data = await response.json();
 
 FormData 的欄位是 `file`。預設 threshold=0.30，前端不需傳參數。結果按 score 降冪。沒有人臉或多張人臉可能 400，提示換清楚單人照。搜尋照片不會加入人物相簿。
 
+回應新增 `searchMode`（`vectorized`／`scalar`）、`qualityLimited`、`queryPartial`。`matches[{id,name,score,url}]` 不變，每張照片取所有觀測最高 cosine，門檻以未四捨五入分數判斷，依四位小數的 `score` 穩定降冪排序，同分保持照片原順序；不按人物分組過濾，也沒有 Top-K 截斷。前端可傳 AbortSignal 取消／換照，取消 429 等待也會停止重試；Node 在轉送成功、失敗或斷線時清除暫存檔。已開始的單次 OpenCV 呼叫不保證可立即中斷。
+
+### P0–P2 本機分析狀態（相容新增）
+
+`GET /api/face/status` 額外回傳 `partialPhotos`（僅完成部分分區偵測的照片數）、`facePipeline`、`groupMode`（`legacy`、`shadow` 或 `enhanced`）及 `searchMode`。`people` 計算有照片的人物；移空後保留的 ID 不列入。`photos` 表示索引已提交，可能含部分偵測；`withoutFaces` 不表示原圖一定無人臉。shadow 的新偵測只記對照，不計入正式 `partialPhotos`。
+
+`GET /api/admin/people` 的人物新增 `provisional` 布林，表示新策略的低品質人物待確認；既有人物缺此欄位時回 false。仍可查看相簿。P3 校正端點如下。
+
+公開人物、相簿及自拍搜尋回應保留原有結構；`score` 仍是 cosine，沒有改成人物機率。非公開人臉裁切不透過 `/thumbs` 提供。
+
 ## 管理登入
 
 所有 `/api/admin/*` 請求都需要：
@@ -103,15 +113,29 @@ X-Admin-Request: 1
 | --- | --- | --- | --- |
 | GET | `/api/admin/session` | 驗證標頭／Cookie | `ok:true` |
 | POST | `/api/admin/logout` | `{}` | 登出當前登入 |
-| GET | `/api/admin/people` | 無 | `people` 與 `history` |
+| GET | `/api/admin/people` | 無 | `people`、`history`、`operations`、`revision` |
 | POST | `/api/admin/merge` | `person_ids`, `target_id` | 合併結果 |
 | POST | `/api/admin/undo` | `merge_id` | 復原結果 |
+| GET | `/api/admin/face-reviews` | `kind=all/duplicate/pending`, `offset=0`, `limit=30` | 複核建議、排除紀錄、revision |
+| POST | `/api/admin/face-reviews/:id/resolve` | `action`, `target_id?`, `revision`, `request_id` | 複核結果 |
+| POST | `/api/admin/face-constraints/:id/revoke` | `revision`, `request_id` | 撤銷不同人約束 |
+| GET | `/api/admin/photos/:id/faces` | 無 | 照片中的觀測與座標、revision |
+| GET | `/api/admin/faces/:id/crop` | 驗證標頭／Cookie | JPEG，no-store |
+| POST | `/api/admin/faces/reassign` | `face_ids`, `target_id?`, `revision`, `request_id` | 單臉／多臉移轉 |
+| POST | `/api/admin/face-corrections/undo` | `correction_id`, `revision`, `request_id` | 復原最近人工操作 |
+| GET | `/api/admin/face-backfill` | `offset=0`, `limit=30` | 回填狀態、待複核總數及任務分頁 |
+| POST | `/api/admin/face-backfill/start` | `photo_ids?`, `retry?`, `revision`, `request_id` | 開始／繼續回填 |
+| POST | `/api/admin/face-backfill/pause` | `revision`, `request_id` | 暫停後續回填 |
+| GET | `/api/admin/face-backfill/candidates/:id` | 無 | 私有候選與位置，無 embedding |
+| GET | `/api/admin/face-backfill/candidates/:id/image` | 管理驗證 | 私有照片預覽 JPEG |
+| GET | `/api/admin/face-backfill/candidates/:id/faces/:face/crop` | 管理驗證 | 私有候選裁切 JPEG |
+| POST | `/api/admin/face-backfill/candidates/:id/accept` | `face_ids`, `revision`, `request_id` | 確認選定漏臉，追加待確認人物 |
 | GET | `/api/admin/drive/status` | 無 | 雲端同步狀態 |
 | POST | `/api/admin/drive/sync` | `{}` | 202：背景同步已啟動 |
 
 ### 合併與復原
 
-管理人物结构同公開列表，另有 `merged` 布林。歷史：`id, created_at`（Unix 秒）, `merged_count, can_undo`。只有最近一次 `can_undo=true`，由新到舊復原。
+管理人物結構同公開列表，另有 `merged`、`provisional` 布林。`history` 保留原合併歷史結構：`id, created_at`（Unix 秒）, `merged_count, can_undo`。`operations` 是統一整理紀錄，含 `id, kind, created_at, can_undo`，kind 為 `merge/reassign/approve/different/skip/revoke/backfill_add`。只有整體最近一次 `can_undo=true`，由新到舊復原；有較新的校正時，舊合併也不能先復原。
 
 ```json
 {"person_ids":["person-a","person-b"],"target_id":"person-a"}
@@ -130,6 +154,48 @@ X-Admin-Request: 1
 ```
 
 回傳 `restored_count` 和 `person_ids`。選擇已過期或復原順序錯誤會 409，重新整理。相簿不刪除原圖，復原不刪掉合併後新增的照片。UI 應提供頭貼勾選、照片預覽、主頭貼選擇和確認對話框。
+
+### 人工複核與單臉校正（P3）
+
+新寫入端點必須附讀取時的整數 `revision`，以及隨機 `request_id`（16–100 位英數、底線、連字號）。同一次網路重試沿用相同 ID；新的主動操作換新 ID。`merge/undo` 為相容舊客戶端仍接受省略這兩欄，新前端一律提供。
+
+成功提交會同時保存人物、指派、約束、歷史、revision 與重試收據。過期 revision 或 ID 被用於不同操作回 409。相同 ID／內容先查收據再查版本，重啟後仍可回 `replayed:true` 及原操作結果，並附**目前** revision；原操作後來即使已復原，也不會再次套用。新操作請重新讀取資料。
+
+`face-reviews` 的 `limit` 為 1–100，`offset` 非負，回應含 `reviews,total,next_offset,constraints,revision`。每項有 `id,kind,person_ids,face_ids,faces`；duplicate 另有 `score,same_photo`，pending 有 `reason`。這些是待人工確認的建議，cosine 不是同人機率。重複建議使用本機樣本、門檻 0.50；新版證據會產生新建議 ID。
+
+resolve 的 `action`：duplicate 可 `merge/different/skip`，pending 可 `approve/skip`。merge 可附要保留的 `target_id`。different 綁定兩個穩定 face ID，阻擋這兩個現有人物的再次合併及違反證據的移轉；撤銷排除後可重提。skip 只略過該版建議，可從整理紀錄復原。
+
+`photos/:id/faces` 回傳 `photo_id,photo_url,revision,faces`。每張臉含 `face_id,person_id,crop_url,photo_url,bbox,coordinate_space,image_size,preview_size,normalized_bbox,quality,confirmed,review_id`。bbox 為 x/y/寬/高；normalized_bbox 是相對 EXIF 校正後完整照片的比例，缺來源尺寸則 null。舊觀測透過照片 ID 與原陣列位置產生穩定 ID，讀取不改寫索引；不要重排原 faces 陣列。回應不包含 embedding。裁切必須由有管理標頭的 fetch 讀為 Blob／object URL，直接 `<img src>` 無法附 Bearer 與 `X-Admin-Request`；關閉畫面／登出後撤銷 object URL。
+
+移轉範例：
+
+```json
+{"face_ids":["stable-face-id"],"target_id":"existing-person-id","revision":42,"request_id":"random-operation-id-0001"}
+```
+
+`target_id:null` 或省略表示拆成新人物；支援 1–100 個不重複 face ID，前端每次選一張。成功回 `operation_id,person_id,moved_count,revision`。只改選定觀測，重建相簿／樣本／張數；移空的人物 ID 留存，列表隱藏但舊相簿回空陣列。確認低品質歸屬不代表將其加入可信代表庫。復原傳 `correction_id:operation_id` 至 face-corrections/undo；合併仍使用 undo 的 `merge_id`。
+
+### 舊照片回填（P5）
+
+第一次開始需先停寫，執行 `maintain_faces.py backup/restore-test/migrate`，登記已驗證備份及穩定人臉 ID；未登記時 start 回 409。此服務仍只支援一個 Node 與一個 Python worker。
+
+start 支援 `photo_ids`（省略代表所有已索引照片，最多指定 1,000 張）及 `retry:false`。同一管線與照片證據已完成的任務不重跑；retry 會重排未完成／過期任務，仍不會繞過來源校驗。暫停不丟棄佇列，已開始的一張分析可先完成；重啟後 processing 會安全重排。暫時性原圖讀取錯誤最多自動嘗試三次，再等人工重試。
+
+狀態回應包含 `revision,paused,counts,total,pending_faces,jobs,next_offset,backup`。狀態為 `queued/processing/ready/unavailable/changed/failed/stale`；ready 代表分析及候選已保存，不代表新增觀測已加入相簿。每筆 job 有 `photo_id,photo_name,status,attempts,candidate_id,new_faces,mapped,ambiguous,partial`，視狀態另有 `message,source,finished_at`；待複核優先顯示，這不改變原照片順序。`limit` 範圍 1–100，offset 非負。
+
+候選回應包含 `candidate_id,photo_id,photo_url,revision,faces,mapped_count,ambiguous_count,partial,stale`。faces 的 `face_id` 是候選 ID，另有 `crop_url,normalized_bbox,accepted,qualityLimited`。圖片需帶登入及管理標頭 fetch 為 Blob；回應為 no-store，不透過公開人物或照片 API 提供未確認裁切。
+
+確認範例：
+
+```json
+{"face_ids":["candidate-face-id"],"revision":42,"request_id":"random-backfill-accept-0001"}
+```
+
+只接受該候選中尚未加入的 1–100 個不重複 ID；過期版本、舊人臉已校正、管線不同或候選內容不符回 409。成功回 `operation_id,added_count,face_ids,person_ids,revision`，只在原 faces 陣列尾端追加。新人物 `provisional=true`，不招募其他照片，需再確認歸屬。復原將 `operation_id` 作為 `correction_id` 傳既有 face-corrections/undo；較新的人工操作必須先復原，非尾端觀測不會被刪除，後來加入的其他照片保留。原子提交與持久化 request_id 收據語意沿用 P3。
+
+舊觀測僅增加穩定 ID 與 `backfill_metadata`；舊 embedding、bbox、person_id、原陣列順序、主頭貼及歷史保留。來源不明或幾何重疊時保留原判斷，不自動取代。確認追加或復原會使搜尋快取失效；只補 metadata 不影響搜尋結果。
+
+Python 向 Node 的內部原圖端點為 `GET /internal/face-backfill/original/:id`，需要內部 `X-Admin-Key`，不可放到前端。回傳二進位及 `X-Original-Sha256/X-Original-Source/Content-Length`，no-store；來源錯誤分為 invalid400、unavailable404、changed409、retryable503。只讀既有 manifest、本機或已授權 Drive 原檔，限制單次 100 MiB（可設定），逐一下載到專用暫存，不修改原圖釋出／匯入／同步狀態。
 
 ### 雲端同步狀態
 
