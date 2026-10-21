@@ -1,17 +1,16 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-import asyncio, copy, io, json, logging, os, threading, time, uuid, hashlib, hmac
+import asyncio, copy, json, logging, os, threading, time, hashlib, hmac
 import cv2
-import numpy as np
-from PIL import Image, ImageOps
-from pillow_heif import register_heif_opener
+from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from core import atomic_json, empty_state, add_photo, similarity, merge_people, undo_merge, resolve_person
+from face_engine import EngineConfig, FaceEngine, persist_analysis
+from matching import MatchConfig
 
-register_heif_opener()
 BASE = Path(__file__).resolve().parent.parent
 load_dotenv(BASE/'.env')
 DATA = Path(os.environ.get('DATA_DIR', str(BASE/'data'))).resolve()
@@ -20,6 +19,22 @@ STATE_PATH = DATA/'face_index.json'
 GROUP_THRESHOLD = float(os.environ.get('GROUP_THRESHOLD', '.50'))
 SEARCH_THRESHOLD = float(os.environ.get('SEARCH_THRESHOLD', '.30'))
 GROUP_MARGIN = float(os.environ.get('GROUP_MARGIN', '.06'))
+FACE_PIPELINE = os.environ.get('FACE_PIPELINE', 'legacy')
+GROUP_MODE = os.environ.get('GROUP_MODE', 'legacy')
+if FACE_PIPELINE not in ('legacy', 'shadow', 'enhanced') or GROUP_MODE not in ('legacy', 'shadow', 'enhanced'):
+    raise ValueError('FACE_PIPELINE and GROUP_MODE must be legacy, shadow or enhanced')
+ENGINE_CONFIG = EngineConfig(max_pixels=int(os.environ.get('FACE_MAX_PIXELS', '60000000')),
+                             tile_size=int(os.environ.get('FACE_TILE_SIZE', '1024')),
+                             overlap=float(os.environ.get('FACE_TILE_OVERLAP', '.25')),
+                             max_tiles=int(os.environ.get('FACE_MAX_TILES', '32')),
+                             tile_seconds=float(os.environ.get('FACE_TILE_SECONDS', '10')),
+                             min_face_pixels=int(os.environ.get('FACE_MIN_PIXELS', '32')),
+                             min_sharpness=float(os.environ.get('FACE_MIN_SHARPNESS', '20')))
+MATCH_CONFIG = MatchConfig(threshold=float(os.environ.get('GROUP_V2_THRESHOLD', '.60')),
+                           margin=float(os.environ.get('GROUP_V2_MARGIN', '.08')),
+                           single_threshold=float(os.environ.get('GROUP_V2_SINGLE_THRESHOLD', '.65')),
+                           sample_threshold=float(os.environ.get('GROUP_V2_SAMPLE_THRESHOLD', '.70')),
+                           sample_margin=float(os.environ.get('GROUP_V2_SAMPLE_MARGIN', '.10')))
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 ADMIN_KEY = hashlib.sha256(('wedding-face-admin:' + ADMIN_PASSWORD).encode()).hexdigest()
 MAX_BYTES = 25*1024*1024
@@ -28,40 +43,28 @@ model_lock = threading.Lock()
 stop = threading.Event()
 state = empty_state()
 detector = recognizer = None
+engine = None
 log = logging.getLogger('uvicorn.error')
 
-def load_image(raw):
-    with Image.open(io.BytesIO(raw)) as source:
-        image = ImageOps.exif_transpose(source).convert('RGB')
-        image.thumbnail((1600, 1600))
-        return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
+def analyze(raw, photo_id=None):
+    with model_lock:
+        result = engine.analyze(raw, photo_id, 'enhanced' if FACE_PIPELINE == 'enhanced' else 'legacy')
+        # Query selfies never incur shadow work or create persisted query records.
+        if FACE_PIPELINE == 'shadow' and photo_id:
+            try:
+                shadow = engine.analyze(raw, photo_id, 'enhanced')
+                result.metadata['shadow'] = {**shadow.metadata, 'face_count': len(shadow.faces),
+                                            'original_bboxes': [f['original_bbox'] for f in shadow.faces]}
+            except Exception as error:
+                log.exception('Shadow detection failed; keeping legacy analysis')
+                result.metadata['shadow'] = {'error': type(error).__name__}
+    if photo_id:
+        persist_analysis(result, DATA, photo_id)
+    return result
+
 
 def extract(raw, photo_id=None):
-    img = load_image(raw)
-    h, w = img.shape[:2]
-    if photo_id:
-        if not cv2.imwrite(str(DATA/'previews'/f'{photo_id}.jpg'), img): raise RuntimeError('Cannot save preview')
-    results = []
-    with model_lock:
-        detector.setInputSize((w, h)); _, faces = detector.detect(img)
-        if faces is None: return results
-        for i, face in enumerate(faces):
-            aligned = recognizer.alignCrop(img, face)
-            feature = recognizer.feature(aligned).flatten().astype(np.float32)
-            feature /= max(float(np.linalg.norm(feature)), 1e-12)
-            x, y, fw, fh = (float(v) for v in face[:4])
-            thumb = None
-            if photo_id:
-                pad = .25 * max(fw, fh)
-                crop = img[max(0,int(y-pad)):min(h,int(y+fh+pad)),
-                           max(0,int(x-pad)):min(w,int(x+fw+pad))]
-                if crop.size:
-                    thumb = f'{photo_id}_{i}.jpg'
-                    crop = cv2.resize(crop, (160, 160))
-                    if not cv2.imwrite(str(DATA/'thumbs'/thumb), crop): raise RuntimeError('Cannot save thumbnail')
-            results.append({'bbox': [x,y,fw,fh], 'embedding': feature.tolist(),
-                            'thumbnail': thumb, 'quality': fw*fh*float(face[-1])})
-    return results
+    return analyze(raw, photo_id).faces
 
 def manifest(photo_id):
     if len(photo_id)!=64 or any(c not in '0123456789abcdef' for c in photo_id):
@@ -81,13 +84,14 @@ def worker():
                 if photo_id in state['photos'] or error.get('attempts',0)>=3 or error.get('retry_at',0)>time.time(): continue
             try:
                 job = json.loads(job_path.read_text(encoding='utf8'))
-                faces = extract((DATA/'originals'/job['file']).read_bytes(), photo_id)
+                result = analyze((DATA/'originals'/job['file']).read_bytes(), photo_id)
                 with state_lock:
                     updated = copy.deepcopy(state)
-                    add_photo(updated, photo_id, job['name'], faces, GROUP_THRESHOLD, GROUP_MARGIN)
+                    add_photo(updated, photo_id, job['name'], result.faces, GROUP_THRESHOLD, GROUP_MARGIN,
+                              mode=GROUP_MODE, match_config=MATCH_CONFIG, analysis=result.metadata)
                     atomic_json(STATE_PATH, updated)
                     state = updated
-                log.info('Indexed %s: %s faces', photo_id[:8], len(faces))
+                log.info('Indexed %s: %s faces (partial=%s)', photo_id[:8], len(result.faces), result.metadata['partial'])
             except Exception as e:
                 log.exception('Analysis failed for %s', photo_id[:8])
                 with state_lock:
@@ -96,9 +100,10 @@ def worker():
                     atomic_json(STATE_PATH, state)
         stop.wait(2)
 
+
 @asynccontextmanager
 async def lifespan(app):
-    global state, detector, recognizer
+    global state, detector, recognizer, engine
     # OS lock is released even after a crash. JSON mode requires one process.
     guard = (DATA/'face-worker.lock').open('a+b')
     try:
@@ -113,6 +118,7 @@ async def lifespan(app):
         models = BASE/'models'
         detector = cv2.FaceDetectorYN.create(str(models/'face_detection_yunet_2023mar.onnx'), '', (320,320), .9, .3, 5000)
         recognizer = cv2.FaceRecognizerSF.create(str(models/'face_recognition_sface_2021dec.onnx'), '')
+        engine = FaceEngine(detector, recognizer, ENGINE_CONFIG)
         stop.clear(); thread = threading.Thread(target=worker, daemon=True); thread.start()
         yield
         stop.set(); await asyncio.to_thread(thread.join)
@@ -126,15 +132,17 @@ def health():
     with state_lock:
         ids = {p.stem for p in (DATA/'jobs').glob('*.json')}
         failed = sum(e.get('attempts',0)>=3 for e in state['errors'].values())
-        return {'ok': True, 'photos': len(state['photos']), 'people': len(state['people']),
+        return {'ok': True, 'photos': len(state['photos']), 'people': sum(bool(p['photo_ids']) for p in state['people'].values()),
                 'pending': len(ids-set(state['photos']))-failed, 'failed': failed,
-                'withoutFaces': sum(not p['faces'] for p in state['photos'].values())}
+                'withoutFaces': sum(not p['faces'] for p in state['photos'].values()),
+                'partialPhotos': sum(p.get('analysis', {}).get('partial', False) for p in state['photos'].values()),
+                'facePipeline': FACE_PIPELINE, 'groupMode': GROUP_MODE}
 
 @app.get('/people')
 def people():
     with state_lock:
         return {'ok': True, 'people': [{'id': pid, 'thumbnail': f'/api/face/thumbs/{p["thumbnail"]}',
-                 'count': len(p['photo_ids'])} for pid,p in state['people'].items()]}
+                 'count': len(p['photo_ids'])} for pid,p in state['people'].items() if p['photo_ids']]}
 
 @app.get('/people/{person_id}/photos')
 def album(person_id: str):
@@ -198,7 +206,7 @@ class UndoRequest(BaseModel):
 def admin_people():
     with state_lock:
         return {'ok': True, 'people': [{'id': pid, 'thumbnail': f'/api/face/thumbs/{p["thumbnail"]}',
-                'count': len(p['photo_ids']), 'merged': p.get('manually_merged', False)} for pid,p in state['people'].items()],
+                'count': len(p['photo_ids']), 'merged': p.get('manually_merged', False), 'provisional': p.get('provisional', False)} for pid,p in state['people'].items() if p['photo_ids']],
                 'history': [{'id': e['id'], 'created_at': e['created_at'], 'merged_count': len(e['people']),
                              'can_undo': i==len(state.get('merge_history', []))-1} for i,e in enumerate(state.get('merge_history', []))]}
 
