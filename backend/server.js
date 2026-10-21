@@ -6,6 +6,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const {pipeline} = require('stream/promises');
 const { google } = require('googleapis');
 const { authenticate } = require('@google-cloud/local-auth');
 require('dotenv').config({path:path.join(__dirname,'.env')});
@@ -162,6 +163,8 @@ const driveSync=require('./drive-sync')({data:DATA,folderId:SOURCE_FOLDER_ID,get
   intervalSeconds:Number(process.env.DRIVE_SYNC_INTERVAL_SECONDS||300),
   maxBytes:Number(process.env.DRIVE_SYNC_MAX_FILE_MB||100)*1024*1024,
   isUploadBusy:()=>activeUploads>0 || [...jobs.values()].filter(j=>j.source==='drive' && !analyzedIds.has(j.id)).length>=30});
+const backfillOriginals=require('./backfill-originals')({data:DATA,getDrive:()=>drive,getJob:id=>jobs.get(id),
+  maxBytes:Number(process.env.FACE_BACKFILL_MAX_BYTES||100*1024*1024),isUploadBusy:()=>activeUploads>0});
 const upload = multer({
   dest:path.join(os.tmpdir(),'wedding-photo-upload'),
   limits:{fileSize:MAX_FILE_SIZE,files:MAX_FILES_PER_REQUEST},
@@ -174,6 +177,37 @@ app.use(cors({credentials:true,origin:(origin,cb)=>{
   const allowed=['http://localhost:'+PORT,'http://localhost:5173','http://127.0.0.1:5173',process.env.GITHUB_PAGES_ORIGIN,...(process.env.FRONTEND_ORIGINS||'').split(',')].map(s=>s?.trim()).filter(Boolean);
   cb(null,!origin||allowed.includes(origin));
 }}));
+const backfillPassword=process.env.ADMIN_PASSWORD||'';
+const backfillConfigured=Array.from(backfillPassword).length>=12;
+const backfillInternalKey=crypto.createHash('sha256').update('wedding-face-admin:'+backfillPassword).digest();
+app.get('/internal/face-backfill/original/:id',async(req,res)=>{
+  res.set('Cache-Control','no-store');
+  if(!backfillConfigured)return res.status(503).json({code:'unavailable',message:'請先設定至少 12 字元的 ADMIN_PASSWORD'});
+  const supplied=req.get('X-Admin-Key')||'';
+  const validKey=/^[a-f0-9]{64}$/.test(supplied);
+  const key=validKey?Buffer.from(supplied,'hex'):Buffer.alloc(32);
+  const sameKey=crypto.timingSafeEqual(key,backfillInternalKey);
+  if(!validKey||!sameKey)return res.status(401).json({code:'unavailable',message:'原檔回填請求驗證失敗'});
+  const disconnected=new AbortController();
+  const onClose=()=>{if(!res.writableEnded)disconnected.abort();};
+  res.once('close',onClose);
+  let original;
+  try{
+    original=await backfillOriginals.acquire(req.params.id);
+    if(res.destroyed||disconnected.signal.aborted)return;
+    res.type('application/octet-stream').set({'X-Original-Sha256':original.sha256,'X-Original-Source':original.source,'Content-Length':String(original.bytes)});
+    await pipeline(fs.createReadStream(original.path),res,{signal:disconnected.signal});
+  }catch(error){
+    if(!res.destroyed&&!res.headersSent){
+      const status={invalid:400,unavailable:404,changed:409,retryable:503};
+      const code=Object.hasOwn(status,error.code)?error.code:'retryable';
+      res.status(status[code]).json({code,message:code===error.code?error.message:'暫時無法取得回填原檔，請稍後重試'});
+    }
+  }finally{
+    res.off('close',onClose);
+    await original?.cleanup().catch(()=>{});
+  }
+});
 app.use('/api/invitations',require('./invitations')({data:DATA}));
 require('./admin-auth')(app,{password:process.env.ADMIN_PASSWORD||'',
   secureCookie:process.env.ADMIN_COOKIE_SECURE==='true',faceURL:FACE_URL,driveSync,backupStatus});

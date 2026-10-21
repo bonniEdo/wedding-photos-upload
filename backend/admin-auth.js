@@ -71,6 +71,17 @@ module.exports=function attachAdmin(app,{password,secureCookie,faceURL,driveSync
   app.get('/api/admin/faces/:id/crop',(req,res)=>forward(req,res,'/admin/faces/'+encodeURIComponent(req.params.id)+'/crop',true));
   app.post('/api/admin/faces/reassign',express.json({limit:'16kb'}),(req,res)=>forward(req,res,'/admin/faces/reassign'));
   app.post('/api/admin/face-corrections/undo',express.json({limit:'8kb'}),(req,res)=>forward(req,res,'/admin/face-corrections/undo'));
+  app.get('/api/admin/face-backfill',(req,res)=>{
+    const params=new URLSearchParams();
+    for(const key of ['offset','limit'])if(typeof req.query[key]==='string')params.set(key,req.query[key]);
+    return forward(req,res,'/admin/face-backfill?'+params);
+  });
+  app.post('/api/admin/face-backfill/start',express.json({limit:'128kb'}),(req,res)=>forward(req,res,'/admin/face-backfill/start'));
+  app.post('/api/admin/face-backfill/pause',express.json({limit:'8kb'}),(req,res)=>forward(req,res,'/admin/face-backfill/pause'));
+  app.get('/api/admin/face-backfill/candidates/:id',(req,res)=>forward(req,res,'/admin/face-backfill/candidates/'+encodeURIComponent(req.params.id)));
+  app.get('/api/admin/face-backfill/candidates/:id/image',(req,res)=>forward(req,res,'/admin/face-backfill/candidates/'+encodeURIComponent(req.params.id)+'/image',true));
+  app.get('/api/admin/face-backfill/candidates/:id/faces/:face/crop',(req,res)=>forward(req,res,'/admin/face-backfill/candidates/'+encodeURIComponent(req.params.id)+'/faces/'+encodeURIComponent(req.params.face)+'/crop',true));
+  app.post('/api/admin/face-backfill/candidates/:id/accept',express.json({limit:'16kb'}),(req,res)=>forward(req,res,'/admin/face-backfill/candidates/'+encodeURIComponent(req.params.id)+'/accept'));
   setInterval(()=>{
     const now=Date.now();for(const [id,expires] of sessions)if(expires<=now)sessions.delete(id);
   },60000).unref();

@@ -222,8 +222,10 @@ def undo_correction(state, operation_id):
         removed = [copy.deepcopy(lookup[fid][2]) for fid in entry['faces_before']]
         for fid, original in entry['faces_before'].items():
             current = lookup[fid][2]
+            backfilled = copy.deepcopy(current.get('backfill_metadata', {}))
             current.clear(); current.update(copy.deepcopy(original))
             current.setdefault('face_id', fid)
+            if backfilled: current.setdefault('backfill_metadata', {}).update(backfilled)
         for pid in entry['affected_ids']:
             fallback = entry['people_before'].get(pid, state['people'][pid])
             if pid in entry['people_before']:
@@ -232,6 +234,9 @@ def undo_correction(state, operation_id):
                 state['people'][pid]['empty'] = not bool(state['people'][pid]['photo_ids'])
             else:
                 rebuild_corrected_person(state, pid, fallback, removed)
+    elif kind == 'backfill_add':
+        from backfill_jobs import undo_added_faces
+        undo_added_faces(state, entry)
     elif kind == 'different':
         state.get('face_constraints', {}).pop(entry['key'], None)
     elif kind == 'skip':
@@ -244,7 +249,7 @@ def undo_correction(state, operation_id):
     else:
         raise ValueError('未知的人工操作類型')
     state['admin_history'].pop()
-    advance(state)
+    advance(state, embeddings=kind == 'backfill_add')
     return {'restored_operation': operation_id, 'revision': revision(state)}
 
 

@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-import asyncio, copy, json, logging, os, threading, time, hashlib, hmac
+import asyncio, copy, json, logging, os, threading, time, hashlib, hmac, io, uuid
 import cv2
 from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Depends
@@ -14,6 +14,8 @@ from face_state import face_id, face_map, latest_operation, revision
 from reviews import (build_reviews, face_view, fingerprint, operation_history, reassign_faces,
                      resolve_review, revoke_constraint, undo_correction)
 from search_index import SearchCache
+from backfill_jobs import (BackfillRunner, OriginalError, pipeline_key, recover_jobs, start_jobs,
+                           pause_jobs, summary as backfill_summary, candidate_job, candidate_basis, accept_faces)
 from typing import Literal
 
 BASE = Path(__file__).resolve().parent.parent
@@ -57,6 +59,7 @@ review_cache_lock = threading.Lock()
 review_source = review_catalog = None
 lookup_cache_lock = threading.Lock()
 lookup_source = lookup_catalog = None
+backfill_runner = None
 log = logging.getLogger('uvicorn.error')
 
 def analyze(raw, photo_id=None):
@@ -111,12 +114,49 @@ def worker():
                     attempts = state['errors'].get(photo_id,{}).get('attempts',0)+1
                     state['errors'][photo_id] = {'attempts': attempts, 'retry_at': time.time()+30*attempts, 'message': str(e)}
                     atomic_json(STATE_PATH, state)
+        if not stop.is_set() and backfill_runner is not None:
+            try:backfill_runner.step()
+            except Exception:log.exception('Backfill state commit failed; preserving recoverable job')
         stop.wait(2)
 
 
+def commit_backfill(handler):
+    global state
+    with state_lock:
+        updated=copy.deepcopy(state);result=handler(updated)
+        atomic_json(STATE_PATH,updated);state=updated
+        return result
+
+
+def backfill_original(photo_id):
+    from urllib.request import Request, urlopen
+    from urllib.parse import urlparse
+    from urllib.error import HTTPError, URLError
+    base=os.environ.get('FACE_BACKFILL_SOURCE_URL','http://127.0.0.1:'+os.environ.get('PORT','3000')).rstrip('/')
+    parsed=urlparse(base)
+    if parsed.scheme not in ('http','https') or parsed.hostname not in ('localhost','127.0.0.1','::1') or parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise OriginalError('unavailable','回填來源必須是本機 Node 服務')
+    request=Request(base+'/internal/face-backfill/original/'+photo_id,headers={'X-Admin-Key':ADMIN_KEY})
+    try:
+        with urlopen(request,timeout=240) as response:
+            raw=response.read(int(os.environ.get('FACE_BACKFILL_MAX_BYTES',str(100*1024*1024)))+1)
+            if len(raw)>int(os.environ.get('FACE_BACKFILL_MAX_BYTES',str(100*1024*1024))):
+                raise OriginalError('unavailable','原圖超過回填大小限制')
+            return raw,response.headers.get('X-Original-Sha256',''),response.headers.get('X-Original-Source','unknown')
+    except HTTPError as error:
+        try:body=json.loads(error.read(4096))
+        except Exception:body={}
+        raise OriginalError(body.get('code','retryable'),body.get('message','暫時無法取得回填原圖')) from error
+    except (URLError,TimeoutError,OSError) as error:
+        raise OriginalError('retryable','本機原圖服務未啟動或連線逾時') from error
+
+
+def analyze_backfill(raw,seed):
+    with model_lock:return engine.analyze(raw,seed,'enhanced')
+
 @asynccontextmanager
 async def lifespan(app):
-    global state, detector, recognizer, engine, search_cache
+    global state, detector, recognizer, engine, search_cache, backfill_runner
     # OS lock is released even after a crash. JSON mode requires one process.
     guard = (DATA/'face-worker.lock').open('a+b')
     try:
@@ -133,6 +173,10 @@ async def lifespan(app):
         detector = cv2.FaceDetectorYN.create(str(models/'face_detection_yunet_2023mar.onnx'), '', (320,320), .9, .3, 5000)
         recognizer = cv2.FaceRecognizerSF.create(str(models/'face_recognition_sface_2021dec.onnx'), '')
         engine = FaceEngine(detector, recognizer, ENGINE_CONFIG)
+        key=pipeline_key(models,ENGINE_CONFIG)
+        if any(j['status']=='processing' for j in state.get('backfill',{}).get('jobs',{}).values()):
+            commit_backfill(lambda updated:recover_jobs(updated,key))
+        backfill_runner=BackfillRunner(DATA,key,lambda:state,commit_backfill,backfill_original,analyze_backfill)
         stop.clear(); thread = threading.Thread(target=worker, daemon=True); thread.start()
         yield
         stop.set(); await asyncio.to_thread(thread.join)
@@ -247,6 +291,15 @@ class CorrectionUndoRequest(VersionedRequest):
     correction_id: str
 
 
+class BackfillStartRequest(VersionedRequest):
+    photo_ids: list[str] | None = Field(default=None,max_length=1000)
+    retry: bool = False
+
+
+class BackfillAcceptRequest(VersionedRequest):
+    face_ids: list[str] = Field(min_length=1,max_length=100)
+
+
 def mutate(body, name, handler):
     """Receipt, revision, data and history are persisted in ONE index transaction."""
     global state
@@ -350,6 +403,114 @@ def admin_undo_correction(body: CorrectionUndoRequest):
     return mutate(body, 'undo-correction', lambda updated: undo_correction(updated, body.correction_id))
 
 
+def require_backfill_runner():
+    if backfill_runner is None:raise HTTPException(503,'回填模型尚未就緒')
+    return backfill_runner
+
+
+@app.get('/admin/face-backfill',dependencies=[Depends(require_admin)])
+def admin_backfill_status(offset: int=0,limit: int=30):
+    if offset<0 or not 1<=limit<=100:raise HTTPException(400,'無效的分頁參數')
+    with state_lock:return {'ok':True,**backfill_summary(state,offset,limit)}
+
+
+@app.post('/admin/face-backfill/start',dependencies=[Depends(require_admin)])
+def admin_backfill_start(body: BackfillStartRequest):
+    runner=require_backfill_runner()
+    return mutate(body,'backfill-start',lambda updated:start_jobs(updated,runner.key,body.photo_ids,body.retry))
+
+
+@app.post('/admin/face-backfill/pause',dependencies=[Depends(require_admin)])
+def admin_backfill_pause(body: VersionedRequest):
+    return mutate(body,'backfill-pause',pause_jobs)
+
+
+def backfill_candidate_snapshot(candidate_id):
+    with state_lock:source=state
+    try:return source,candidate_job(source,candidate_id)
+    except ValueError as error:raise HTTPException(404,str(error)) from error
+
+
+@app.get('/admin/face-backfill/candidates/{candidate_id}',dependencies=[Depends(require_admin)])
+def admin_backfill_candidate(candidate_id: str):
+    source,job=backfill_candidate_snapshot(candidate_id);candidate=job['candidate']
+    try:candidate_basis(source,job);stale=(job['status']!='ready' or backfill_runner is None or job['pipeline_key']!=backfill_runner.key)
+    except ValueError:stale=True
+    faces=[]
+    for proposal in candidate['new_faces']:
+        face=proposal['face'];size=face.get('image_size');box=face['bbox'];fid=proposal['candidate_face_id']
+        faces.append({'face_id':fid,'crop_url':f'/api/admin/face-backfill/candidates/{candidate_id}/faces/{fid}/crop',
+                      'normalized_bbox':[box[0]/size[0],box[1]/size[1],box[2]/size[0],box[3]/size[1]] if size else None,
+                      'accepted':fid in job.get('accepted',{}),'qualityLimited':not face.get('quality_metrics',{}).get('sample_eligible',False)})
+    return {'ok':True,'revision':revision(source),'candidate_id':candidate_id,'photo_id':candidate['photo_id'],
+            'photo_url':f'/api/admin/face-backfill/candidates/{candidate_id}/image','faces':faces,
+            'mapped_count':len(candidate['mapped']),'ambiguous_count':len(candidate['ambiguous']),
+            'partial':candidate['analysis'].get('partial',False),'stale':stale}
+
+
+def candidate_asset(directory,name):
+    if not isinstance(name,str) or Path(name).name!=name or not name.endswith('.jpg'):
+        raise HTTPException(404,'找不到回填影像')
+    root=DATA/'face-backfill'/directory;path=root/name
+    if not root.resolve().is_relative_to(DATA.resolve()) or path.is_symlink() or not path.is_file() or path.resolve().parent!=root.resolve():
+        raise HTTPException(404,'找不到回填影像')
+    return path
+
+
+@app.get('/admin/face-backfill/candidates/{candidate_id}/image',dependencies=[Depends(require_admin)])
+def admin_backfill_image(candidate_id: str):
+    _,job=backfill_candidate_snapshot(candidate_id)
+    return FileResponse(candidate_asset('previews',job['candidate']['id']+'.jpg'),media_type='image/jpeg',headers={'Cache-Control':'no-store'})
+
+
+@app.get('/admin/face-backfill/candidates/{candidate_id}/faces/{key}/crop',dependencies=[Depends(require_admin)])
+def admin_backfill_crop(candidate_id: str,key: str):
+    _,job=backfill_candidate_snapshot(candidate_id)
+    face=next((f['face'] for f in job['candidate']['new_faces'] if f['candidate_face_id']==key),None)
+    if face is None:raise HTTPException(404,'找不到回填人臉')
+    return FileResponse(candidate_asset('crops',face.get('crop')),media_type='image/jpeg',headers={'Cache-Control':'no-store'})
+
+
+def promote_asset(directory,name,target_directory):
+    source=candidate_asset(directory,name);target=DATA/target_directory/name
+    try:
+        if source.stat().st_size>4*1024*1024:raise ValueError('oversize crop')
+        payload=source.read_bytes()
+        if len(payload)>4*1024*1024:raise ValueError('oversize crop')
+        with Image.open(io.BytesIO(payload)) as image:
+            if image.format!='JPEG' or max(image.size)>512:raise ValueError('invalid crop format')
+            image.verify()
+        with Image.open(io.BytesIO(payload)) as image:image.load()
+    except (OSError,ValueError,SyntaxError) as error:
+        raise HTTPException(409,'回填裁切損壞，請重新回填') from error
+    target.parent.mkdir(parents=True,exist_ok=True)
+    if target.parent.is_symlink() or not target.parent.resolve().is_relative_to(DATA.resolve()) or target.is_symlink():
+        raise HTTPException(409,'回填產物路徑異常')
+    if target.exists():
+        if not target.is_file() or target.read_bytes()!=payload:raise HTTPException(409,'既有產物同名但內容不同，保留原檔')
+        return
+    temporary=target.with_name(target.name+'.'+uuid.uuid4().hex+'.tmp')
+    try:
+        with temporary.open('xb') as stream:stream.write(payload);stream.flush();os.fsync(stream.fileno())
+        try:os.link(temporary,target)
+        except FileExistsError:
+            if target.is_symlink() or target.read_bytes()!=payload:raise HTTPException(409,'既有產物同名但內容不同，保留原檔')
+    finally:temporary.unlink(missing_ok=True)
+
+
+@app.post('/admin/face-backfill/candidates/{candidate_id}/accept',dependencies=[Depends(require_admin)])
+def admin_backfill_accept(candidate_id: str,body: BackfillAcceptRequest):
+    runner=require_backfill_runner()
+    def apply(updated):
+        result=accept_faces(updated,candidate_id,body.face_ids,runner.key)
+        job=candidate_job(updated,candidate_id)
+        for proposal in job['candidate']['new_faces']:
+            if proposal['candidate_face_id'] in body.face_ids:
+                face=proposal['face'];promote_asset('thumbs',face['thumbnail'],'thumbs');promote_asset('crops',face['crop'],'face_crops')
+        return result
+    return mutate(body,'backfill-accept:'+candidate_id,apply)
+
+
 @app.get('/admin/photos/{photo_id}/faces', dependencies=[Depends(require_admin)])
 def admin_photo_faces(photo_id: str):
     source, _ = lookup_snapshot()
@@ -385,6 +546,11 @@ def admin_face_crop(key: str):
     if key not in lookup:
         raise HTTPException(404, '找不到人臉')
     face = lookup[key][2]
+    # Supplemental original-size crops never replace the existing public thumbnail.
+    for metadata in reversed(list(face.get('backfill_metadata',{}).values())):
+        try:
+            return FileResponse(candidate_asset('crops',metadata.get('crop')),media_type='image/jpeg',headers={'Cache-Control':'no-store'})
+        except HTTPException:pass
     for directory, name in [('face_crops', face.get('crop')), ('thumbs', face.get('thumbnail'))]:
         if name and Path(name).name == name and name.endswith('.jpg'):
             candidate = DATA/directory/name
