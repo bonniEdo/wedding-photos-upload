@@ -1,0 +1,40 @@
+.selfie-card {
+  max-width: 640px;
+  margin-top: 24px;
+  text-align: center;
+}
+
+.selfie-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+#queryPreview[hidden] + .selfie-actions { margin-top: 16px; }
+
+.selfie-picker { position: relative; cursor: pointer; }
+.selfie-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+#queryPreview {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  margin: 18px auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+#searchStatus:not(:empty) {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}

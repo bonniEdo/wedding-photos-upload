@@ -24,19 +24,6 @@
     return .76 + (hash / 4294967296) * .4;
   }
 
-  // Deterministic star positions avoid changing the sky on each refresh.
-  let seed = 73;
-  const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const stars = document.createDocumentFragment();
-  for (let i = 0; i < 180; i++) {
-    const star = document.createElement('span');
-    star.className = 'star' + (i % 12 === 0 ? ' gold' : '');
-    const size = i % 17 === 0 ? 2 : 1;
-    star.style.cssText = `left:${random()*100}%;top:${random()*100}%;width:${size}px;height:${size}px;--alpha:${.18+random()*.48};--time:${3+random()*6}s;animation-delay:-${random()*7}s`;
-    stars.append(star);
-  }
-  el('stars').append(stars);
-
   function sizeScene() {
     if (sphere.hidden) return;
     width = sphere.clientWidth; height = sphere.clientHeight;
@@ -254,8 +241,8 @@
     sphere.parentElement.classList.add('is-morphing');
     sphere.parentElement.setAttribute('aria-busy', 'true');
     el('focusCard').hidden = true;
-    el('sphereView').classList.toggle('active', !value); el('listView').classList.toggle('active', value);
-    el('sphereView').setAttribute('aria-pressed', String(!value)); el('listView').setAttribute('aria-pressed', String(value));
+    el('listView').textContent = value ? '相遇星球' : '人物列表';
+    el('sceneTitle').textContent = value ? '人物列表' : '我們的相遇星圖';
     const destination = value ? el('people') : el('spherePeople');
     const fragment = document.createDocumentFragment();
     for (const node of nodes) {
@@ -346,7 +333,13 @@
     if (actions[event.key]) { event.preventDefault(); actions[event.key](); }
   });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && (selected || event.target.closest('.universe'))) { reset(); sphere.focus({preventScroll:true}); } });
-  el('sphereView').onclick = () => setList(false); el('listView').onclick = () => setList(true);
+  el('listView').onclick = () => {
+    setList(!listMode);
+    const url = new URL(location.href);
+    if (listMode) url.searchParams.set('view', 'list');
+    else url.searchParams.delete('view');
+    history.replaceState(history.state, '', url);
+  };
   el('closeFocus').onclick = () => { reset(); sphere.focus({preventScroll:true}); };
   el('openAlbum').onclick = () => { if (selected) onSelect(selected); };
   reducedMotion.addEventListener('change', () => { autoRotate = !reducedMotion.matches; if (reducedMotion.matches) finishMorph(); wake(); });
@@ -380,5 +373,6 @@
   new ResizeObserver(sizeScene).observe(sphere);
   new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (visible) wake(); }, {rootMargin:'100px'}).observe(sphere);
   window.WeddingSphere = Object.freeze({render, focus, reset, onSelect(callback) { onSelect = callback; }});
-  sizeScene();
+  if (new URLSearchParams(location.search).get('view') === 'list') setList(true);
+  else sizeScene();
 })();

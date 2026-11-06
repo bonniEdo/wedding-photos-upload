@@ -26,6 +26,7 @@ function setStatus(message, type='info'){
 function setProgress(percent, label=''){
   const p = Math.max(0, Math.min(100, Math.round(percent)));
   progressBar.style.width = `${p}%`;
+  progressBar.setAttribute('aria-valuenow', p);
   progressText.textContent = `${p}%`;
   batchText.textContent = label;
 }
@@ -146,6 +147,7 @@ input.addEventListener('change', ()=>{
     setStatus(`一次最多 20 張，已先取前 20 張。`, 'info');
   }else{
     statusBox.className = 'status';
+    statusBox.textContent = '';
   }
 
   selectedFiles = files;
@@ -220,6 +222,6 @@ uploadBtn.addEventListener('click', async ()=>{
   }finally{
     input.disabled=false;
     uploadBtn.disabled = selectedFiles.length === 0;
-    uploadBtn.textContent = '上傳給新郎新娘 💛';
+    uploadBtn.textContent = '上傳給新郎新娘';
   }
 });

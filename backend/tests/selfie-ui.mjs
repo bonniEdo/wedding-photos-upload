@@ -1,4 +1,4 @@
-// Exercise observable cancellation/stale-response behavior without loading the 3D canvas.
+// Exercise cancellation and stale responses on the standalone selfie page.
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -8,18 +8,16 @@ const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
 const timers=new Map();let timerId=0,handler;
 const response=(data,status=200)=>({ok:status===200,status,json:async()=>data});
 const context=vm.createContext({
-  document:{getElementById:get,querySelectorAll:()=>[],hidden:false,createElement:element},
-  WeddingSphere:{render(){},reset(){},onSelect(){}},
-  WeddingAPI:{base:'',url:x=>x,request:async(route,options)=>{
-    if(route.endsWith('/find'))return handler(options);
-    if(route.endsWith('/status'))return response({photos:0,people:0});
-    return response({people:[],photos:[]});
-  }},
+  document:{getElementById:get,createElement:element},
+  window:{addEventListener(){}},
+  WeddingAPI:{url:x=>x,request:async(route,options)=>{assert.equal(route,'/api/face/find');return handler(options);}},
   AbortController,DOMException,FormData,Blob,URL,console,
-  matchMedia:()=>({matches:true}),setInterval(){},
+  matchMedia:()=>({matches:true}),
   setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),
 });
-vm.runInContext(await readFile(new URL('../../frontend/assets/people.js',import.meta.url),'utf8'),context);
+for (const asset of ['gallery-results.js','selfie.js']) {
+  vm.runInContext(await readFile(new URL('../../frontend/assets/'+asset,import.meta.url),'utf8'),context);
+}
 const flush=()=>new Promise(r=>setImmediate(r));await flush();
 function choose(){get('selfie').files=[new Blob(['fixture'],{type:'image/jpeg'})];get('selfie').onchange();}
 choose();

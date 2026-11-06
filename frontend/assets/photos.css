@@ -1,108 +1,93 @@
-:root{
-  --yellow:#fff3b8;
-  --yellow2:#fff8d8;
-  --blue:#8fb3df;
-  --brown:#5b3a29;
-  --cream:#fffdf8;
-  --line:#eadfbd;
-  --ok:#2f8f5b;
-  --err:#b84a4a;
+.upload-card {
+  max-width: 640px;
+  margin-top: 24px;
 }
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
-  background:linear-gradient(180deg,var(--yellow2),#fffdf5);
-  color:var(--brown);
-  min-height:100vh;
+
+.pick {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: clamp(20px, 5vw, 36px) 12px;
+  border: 1px dashed #c9b98988;
+  border-radius: 16px;
+  background: radial-gradient(ellipse at top, #e4cf9b10, transparent 85%), #0a1525a6;
+  text-align: center;
+  cursor: pointer;
 }
-.wrap{width:min(720px,100%);margin:0 auto;padding:24px 18px 44px}
-.card{
-  background:rgba(255,255,255,.92);
-  border:1px solid var(--line);
-  border-radius:28px;
-  padding:26px 20px;
-  box-shadow:0 12px 32px rgba(91,58,41,.08);
+
+.pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
 }
-.hero{text-align:center}
-.emoji{font-size:48px}
-h1{margin:10px 0 8px;font-size:30px}
-.sub{line-height:1.7;opacity:.82}
-.pick{
-  display:block;
-  margin-top:22px;
-  border:2px dashed #d9c989;
-  border-radius:22px;
-  padding:26px 16px;
-  text-align:center;
-  background:#fffdf4;
-  cursor:pointer;
+
+.pick .action { border-color: #e4cf9b66; background: #e4cf9b1a; color: var(--gold); }
+.pick:hover:not(:has(:disabled)) .action { transform: translateY(-2px); border-color: var(--gold); background: #e4cf9b2b; }
+.pick:has(:disabled) { cursor: not-allowed; opacity: .55; }
+.pick-help, .batchText, .privacy { color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+.count {
+  display: none;
+  margin-top: 16px;
+  color: var(--gold);
+  text-align: center;
+  font-size: 13px;
 }
-input[type=file]{display:none}
-.btn{
-  border:0;
-  border-radius:999px;
-  padding:14px 20px;
-  font-size:17px;
-  font-weight:700;
-  cursor:pointer;
+
+.preview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
 }
-.pick .btn{display:inline-block;background:var(--yellow);color:var(--brown)}
-#uploadBtn{width:100%;margin-top:18px;background:var(--blue);color:#fff}
-#uploadBtn:disabled{opacity:.45;cursor:not-allowed}
-.meta{margin-top:10px;font-size:14px;opacity:.7}
-.count{
-  margin-top:14px;
-  padding:10px 12px;
-  border-radius:14px;
-  background:#fff8dd;
-  text-align:center;
-  font-size:14px;
-  display:none;
+.preview:empty { display: none; }
+.preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #1b2c41;
 }
-.preview{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  margin-top:16px;
+
+#uploadBtn { width: 100%; margin-top: 18px; }
+.progressWrap { display: none; margin-top: 18px; text-align: center; }
+.progressTrack { height: 8px; overflow: hidden; border-radius: 999px; background: #233348; }
+.progressBar { width: 0%; height: 100%; border-radius: inherit; background: var(--gold); transition: width .18s ease; }
+.progressText { margin-top: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.batchText { margin-top: 4px; }
+
+.upload-card .status.show {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #20344c99;
+  color: var(--blue);
+  font-size: 13px;
+  line-height: 1.6;
 }
-.preview img{
-  width:100%;
-  aspect-ratio:1;
-  object-fit:cover;
-  border-radius:14px;
-  border:1px solid var(--line);
+.upload-card .status.ok { border-color: #8ad7af55; background: #17372f; color: #b1ebc9; }
+.upload-card .status.err { border-color: #f3a6a555; background: #3a2730; color: #ffc3c0; }
+.privacy { margin: 18px 0 0; text-align: center; }
+
+.upload-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 22px;
+  margin-top: 12px;
+  font-size: 13px;
 }
-.progressWrap{display:none;margin-top:18px}
-.progressTrack{
-  height:14px;
-  background:#eee4c9;
-  border-radius:999px;
-  overflow:hidden;
-}
-.progressBar{
-  height:100%;
-  width:0%;
-  background:var(--blue);
-  transition:width .18s ease;
-}
-.progressText{text-align:center;margin-top:8px;font-weight:700}
-.batchText{text-align:center;margin-top:4px;font-size:13px;opacity:.7}
-.status{
-  margin-top:16px;
-  padding:14px 16px;
-  border-radius:16px;
-  display:none;
-  line-height:1.55;
-}
-.status.show{display:block}
-.status.ok{background:#edf8f1;color:var(--ok)}
-.status.err{background:#fff0f0;color:var(--err)}
-.status.info{background:#eef5ff;color:#345f95}
-.privacy{
-  font-size:13px;
-  opacity:.66;
-  margin-top:18px;
-  line-height:1.65;
-  text-align:center;
+.upload-links a { display: grid; place-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 4px; }
+.upload-links a:hover { color: var(--gold); }
+
+@media (max-width: 480px) {
+  .upload-card { margin-top: 18px; }
+  .preview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

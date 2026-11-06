@@ -1,0 +1,231 @@
+:root {
+  color-scheme: dark;
+  scrollbar-gutter: stable;
+  --bg: #080d19;
+  --ink: #e6ebf4;
+  --muted: #aab6c9;
+  --gold: #e4cf9b;
+  --line: #a5bedf2b;
+  --blue: #dcebfa;
+  --surface: #122034a8;
+  --serif: "Songti TC", "Noto Serif TC", "PMingLiU", serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  background: var(--bg);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  --gutter: clamp(18px, 3.35vw, 48px);
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  max-width: 1440px;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding-top: env(safe-area-inset-top);
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+  color: var(--ink);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    url("gallery-stars.svg") center top / 410px 330px repeat,
+    radial-gradient(ellipse at 12% 45%, #17354e80, transparent 53%),
+    radial-gradient(ellipse at 90% 17%, #29234180, transparent 47%),
+    radial-gradient(ellipse at 50% 48%, #101d32, transparent 68%),
+    var(--bg);
+}
+
+main { flex: 1; min-width: 0; }
+a { color: var(--blue); text-decoration: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button, input, a { -webkit-tap-highlight-color: transparent; }
+button, a, label { touch-action: manipulation; }
+button:focus-visible, a:focus-visible, label:focus-within, [tabindex]:focus-visible {
+  outline: 2px solid #bee4fc;
+  outline-offset: 4px;
+}
+[hidden] { display: none !important; }
+
+.gallery-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 64px;
+}
+
+.gallery-nav {
+  grid-column: 2;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #101928b3;
+}
+
+.gallery-nav > * {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding-inline: 15px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.gallery-nav button { border: 0; background: transparent; }
+.gallery-nav :is(a, button):hover { background: #263347; color: var(--ink); }
+.gallery-nav [data-all-photos] { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.gallery-nav [aria-current="page"] {
+  background: #e4cf9b1a;
+  box-shadow: inset 0 0 0 1px #e4cf9b45;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.gallery-intro { padding: 30px 0 10px; text-align: center; }
+.eyebrow { margin: 0 0 16px; color: #a6b8d0; font-size: 10px; letter-spacing: 2.5px; }
+.gallery-heading h1 {
+  margin: 0 0 14px;
+  font: 500 clamp(25px, 3vw, 36px) / 1.35 var(--serif);
+  letter-spacing: .09em;
+  text-wrap: balance;
+}
+.gallery-heading h1 span { color: var(--gold); }
+.intro-note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; letter-spacing: .08em; }
+
+.card {
+  max-width: 1050px;
+  margin: 36px auto 0;
+  padding: clamp(18px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 16px 48px #02060d40;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font: 500 24px var(--serif);
+  letter-spacing: 2px;
+}
+.note { margin-bottom: 24px; color: var(--muted); font-size: 12px; line-height: 1.9; }
+#results { scroll-margin-top: 24px; }
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; margin-top: 24px; }
+.photo img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: #1b2c41; }
+.photo a { display: block; margin: 10px 0; color: #bacce4; font-size: 11px; }
+.photos > p { color: var(--muted); font-size: 13px; line-height: 1.8; }
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 13px 22px;
+  border: 1px solid #738aa466;
+  border-radius: 999px;
+  background: #12203288;
+  color: var(--ink);
+  font-size: 13px;
+  letter-spacing: .04em;
+  transition: border-color .2s, background .2s, transform .2s;
+}
+
+.action:hover:not(:disabled, [aria-disabled="true"]) {
+  transform: translateY(-2px);
+  border-color: #c0d4ed;
+  background: #1f3047;
+}
+
+.action > span { font-size: 20px; line-height: 1; }
+.action-primary { border-color: var(--blue); background: var(--blue); color: #13253a; font-weight: 600; }
+.action-primary:hover:not(:disabled) { border-color: #f0f7ff; background: #f0f7ff; }
+
+.gallery-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 18px;
+  margin-top: 36px;
+  padding: 20px 0 max(20px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+
+@media (max-width: 640px) {
+  .gallery-topbar { grid-template-columns: minmax(0, 1fr) 44px; gap: 4px; }
+  .gallery-nav {
+    grid-column: 1;
+    justify-self: center;
+    width: min(100%, 380px);
+    gap: 2px;
+    padding: 3px;
+  }
+  .gallery-nav > * { flex: 1 0 auto; padding-inline: 0; font-size: 12px; }
+  .gallery-nav .external-mark { display: none; }
+}
+
+@media (max-width: 480px) {
+  .gallery-intro { padding: 24px 0 8px; }
+  .gallery-heading .eyebrow { margin-bottom: 12px; letter-spacing: .16em; }
+  .gallery-heading h1 { letter-spacing: .045em; }
+  .card h2 { font-size: 20px; }
+  .gallery-footer { font-size: 9px; }
+}
+
+@media (max-width: 360px) {
+  .gallery-nav > * + * { position: relative; }
+  .gallery-nav > * + *::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: 50%;
+    width: 1px;
+    height: 12px;
+    transform: translateY(-50%);
+    background: var(--line);
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Each page opts in from the head so cold navigations can start the transition. */
+  /* Keep the viewport snapshot in place so the shared sky does not move. */
+  ::view-transition-group(root) {
+    animation-duration: 240ms;
+    animation-timing-function: ease-in-out;
+  }
+
+  /* Distinct heading snapshots keep their own positions on history traversal. */
+  .people-page .gallery-heading { view-transition-name: people-heading; }
+  .upload-page .gallery-heading { view-transition-name: upload-heading; }
+  .selfie-page .gallery-heading { view-transition-name: selfie-heading; }
+
+  ::view-transition-old(people-heading), ::view-transition-old(upload-heading), ::view-transition-old(selfie-heading) {
+    animation: gallery-exit 240ms ease-in-out both;
+  }
+  ::view-transition-new(people-heading), ::view-transition-new(upload-heading), ::view-transition-new(selfie-heading) {
+    animation: gallery-enter 240ms ease-in-out both;
+  }
+}
+
+@keyframes gallery-exit { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes gallery-enter { from { opacity: 0; transform: translateY(8px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

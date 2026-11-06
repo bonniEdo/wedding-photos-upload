@@ -2,26 +2,42 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#080d19">
   <meta name="description" content="從我們出發，找到照片裡的你。旋轉婚禮照片星球，探索每一次相遇。">
   <title>我們的婚禮照片星球</title>
+  <style media="(prefers-reduced-motion: no-preference)">@view-transition { navigation: auto; }</style>
+  <link rel="stylesheet" href="assets/gallery.css">
   <link rel="stylesheet" href="assets/people.css">
+  <link rel="expect" href="#gallery-main" blocking="render">
+  <script defer src="config.js"></script>
+  <script defer src="assets/api-client.js"></script>
+  <script defer src="assets/gallery-link.js"></script>
+  <script defer src="assets/gallery-results.js"></script>
+  <script defer blocking="render" src="assets/people-sphere.js"></script>
+  <script defer src="assets/people.js"></script>
 </head>
-<body>
-  <div class="space" aria-hidden="true"><div class="nebula nebula-one"></div><div class="nebula nebula-two"></div><div id="stars"></div></div>
-  <main>
-    <nav class="topbar" aria-label="頁面導覽">
-      <div class="topbar-end"><span class="live-dot" aria-hidden="true"></span><span id="connection">連接每一次相遇</span><button id="refresh" class="icon-button" type="button" aria-label="重新整理人物" title="重新整理">↻</button></div>
+<body class="people-page">
+  <header class="gallery-topbar">
+    <nav class="gallery-nav" aria-label="婚禮相簿操作">
+      <a href="photos.html">上傳照片</a>
+      <button id="listView" type="button" aria-controls="listPanel sphere">人物列表</button>
+      <a href="selfie.html">自拍找我</a>
+      <a data-all-photos href="#" target="_blank" rel="noopener" aria-disabled="true">看全部照片<span class="external-mark" aria-hidden="true"> ↗</span></a>
     </nav>
-    <header class="intro">
-      <p class="eyebrow">EVERY CONNECTION TELLS A STORY</p>
-      <h1>所有相遇，都在這裡發光<span>。</span></h1>
-      <p class="intro-note">以我們為中心，讓每一個你，成為閃耀的星。</p>
-      <div class="view-switch" role="group" aria-label="人物顯示方式"><button id="sphereView" class="active" type="button" aria-pressed="true"><span aria-hidden="true">◉</span> 相遇星球</button><button id="listView" type="button" aria-pressed="false"><span aria-hidden="true">▦</span> 人物列表</button></div>
+    <div class="topbar-end"><span class="live-dot" aria-hidden="true"></span><span id="connection">連接每一次相遇</span><button id="refresh" class="icon-button" type="button" aria-label="重新整理人物" title="重新整理">↻</button></div>
+  </header>
+  <main id="gallery-main">
+    <header class="gallery-intro">
+      <div class="gallery-heading">
+        <p class="eyebrow">EVERY CONNECTION TELLS A STORY</p>
+        <h1>所有相遇，都在這裡發光<span>。</span></h1>
+        <p class="intro-note">以我們為中心，讓每一個你，成為閃耀的星。</p>
+      </div>
     </header>
     <section class="universe" aria-label="可旋轉的婚禮人物星球">
-      <div class="scene-caption"><span class="small-line"></span>我們的相遇星圖 <span id="personTotal" class="person-total"></span></div>
+      <div class="scene-caption"><span class="small-line"></span><span id="sceneTitle">我們的相遇星圖</span><span id="personTotal" class="person-total"></span></div>
       <span class="vertical-caption" aria-hidden="true">CONNECTED BY LOVE</span>
       <div id="sphere" class="sphere" tabindex="0" aria-label="人物星球。可拖曳或滾動旋轉，雙指或觸控板捏合縮放，方向鍵旋轉，加減鍵縮放，Escape 回到全景。">
         <div class="orbit orbit-one" aria-hidden="true"></div><div class="orbit orbit-two" aria-hidden="true"></div>
@@ -36,28 +52,20 @@
           </button>
         </div>
         <div class="couple-title"><h2>我們的幸福，與你相連</h2><p>THE CENTER OF OUR UNIVERSE</p></div>
-        <div id="empty" class="empty" hidden>星球正等待每一個你。<br><a href="photos.html">上傳照片，開始我們的故事 ↗</a></div>
+        <div id="empty" class="empty" hidden>星球正等待每一個你。</div>
       </div>
       <div id="focusCard" class="focus-card" hidden>
         <button id="closeFocus" class="focus-close icon-button" type="button" aria-label="關閉人物聚焦">×</button>
         <p class="eyebrow">A PART OF OUR STORY</p><h2 id="focusTitle">這一刻，有你</h2><p id="focusCount"></p>
         <button id="openAlbum" class="album-button" type="button">看看有你的照片 <span aria-hidden="true">↗</span></button>
       </div>
-      <div id="listPanel" class="list-panel" hidden><div id="people" class="people"></div><p id="listEmpty" class="note" hidden></p></div>
+      <div id="listPanel" class="list-panel" hidden><div id="people" class="people"></div><p id="listEmpty" class="note">正在尋找照片裡的大家…</p></div>
     </section>
     <div class="scene-status"><div id="queue" class="status" role="status">正在尋找照片裡的大家…</div><span>每一張臉，都是故事的一部分</span></div>
-    <div class="primary-actions"><a class="action" href="photos.html"><span aria-hidden="true">＋</span> 上傳照片</a><button id="findMe" class="action action-primary" type="button" aria-expanded="false" aria-controls="selfiePanel"><span aria-hidden="true">⌕</span> 自拍找我</button><a class="action" data-all-photos href="#" target="_blank" rel="noopener" aria-disabled="true"><span aria-hidden="true">↗</span> 看全部照片</a></div>
     <p id="coupleStatus" class="couple-status" role="status" hidden></p>
     <input id="coupleFile" type="file" accept="image/*" hidden>
-    <section id="selfiePanel" class="card selfie-card" hidden>
-      <div><p class="eyebrow">FIND YOUR MOMENTS</p><h2>從一張自拍，找到你的回憶</h2><p class="note">選一張清楚的單人照，或用手機拍一張自拍。</p></div>
-      <input id="selfie" type="file" accept="image/*,.heic,.heif" aria-label="選擇自拍照片">
-      <img id="queryPreview" alt="選擇的自拍預覽">
-      <div class="actions"><button id="search" class="action action-primary" type="button" disabled>找我的照片</button><button id="cancelSearch" class="action" type="button" hidden>取消搜尋</button><label class="action" for="camera">拍一張自拍</label><input id="camera" type="file" accept="image/*" capture="user" hidden></div><div id="searchStatus" class="status" role="status"></div>
-    </section>
     <section id="results" class="card" hidden><p class="eyebrow">OUR SHARED MEMORIES</p><h2 id="viewTitle"></h2><p class="note" id="resultNote"></p><div id="photos" class="photos"></div></section>
-    <footer><span>MADE OF MOMENTS, CONNECTED BY LOVE</span><span>婚禮照片 · v4.1.0</span></footer>
   </main>
-  <script src="config.js"></script><script src="assets/api-client.js"></script><script src="assets/gallery-link.js"></script><script src="assets/people-sphere.js"></script><script src="assets/people.js"></script>
+  <footer class="gallery-footer"><span>MADE OF MOMENTS, CONNECTED BY LOVE</span><span>婚禮照片 · v4.1.0</span></footer>
 </body>
 </html>

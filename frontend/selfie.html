@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#080d19">
+  <title>自拍找我｜婚禮照片</title>
+  <style media="(prefers-reduced-motion: no-preference)">@view-transition { navigation: auto; }</style>
+  <link rel="stylesheet" href="assets/gallery.css">
+  <link rel="stylesheet" href="assets/selfie.css">
+  <link rel="expect" href="#gallery-main" blocking="render">
+</head>
+<body class="selfie-page">
+  <header class="gallery-topbar">
+    <nav class="gallery-nav" aria-label="婚禮相簿操作">
+      <a href="photos.html">上傳照片</a>
+      <a href="people.html?view=list">人物列表</a>
+      <span aria-current="page">自拍找我</span>
+      <a data-all-photos href="#" target="_blank" rel="noopener" aria-disabled="true">看全部照片<span class="external-mark" aria-hidden="true"> ↗</span></a>
+    </nav>
+  </header>
+  <main id="gallery-main">
+    <header class="gallery-intro">
+      <div class="gallery-heading">
+        <p class="eyebrow">FIND YOUR MOMENTS</p>
+        <h1>從一張自拍，找到你的回憶<span>。</span></h1>
+        <p class="intro-note">選一張清楚的單人照，或用手機拍一張自拍。</p>
+      </div>
+    </header>
+
+    <section class="card selfie-card" aria-label="自拍搜尋">
+      <div class="selfie-actions">
+        <label class="action selfie-picker" for="selfie">
+          選擇自拍照片
+          <input id="selfie" type="file" accept="image/*,.heic,.heif">
+        </label>
+        <label class="action selfie-picker" for="camera">
+          拍一張自拍
+          <input id="camera" type="file" accept="image/*" capture="user">
+        </label>
+      </div>
+      <img id="queryPreview" alt="選擇的自拍預覽" hidden>
+      <div class="selfie-actions">
+        <button id="search" class="action action-primary" type="button" disabled>找我的照片</button>
+        <button id="cancelSearch" class="action" type="button" hidden>取消搜尋</button>
+      </div>
+      <div id="searchStatus" role="status"></div>
+    </section>
+
+    <section id="results" class="card" hidden>
+      <p class="eyebrow">OUR SHARED MEMORIES</p>
+      <h2 id="viewTitle"></h2>
+      <p class="note" id="resultNote"></p>
+      <div id="photos" class="photos"></div>
+    </section>
+  </main>
+  <footer class="gallery-footer"><span>MADE OF MOMENTS, CONNECTED BY LOVE</span><span>婚禮照片 · v4.1.0</span></footer>
+
+  <script src="config.js"></script><script src="assets/api-client.js"></script><script src="assets/gallery-link.js"></script><script src="assets/gallery-results.js"></script><script src="assets/selfie.js"></script>
+</body>
+</html>
