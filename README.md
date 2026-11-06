@@ -16,7 +16,7 @@ pnpm dev
 | 服務 | 網址 |
 | --- | --- |
 | 前端 | <http://localhost:5173/photos.html> |
-| Node API | <http://localhost:3000/api/health> |
+| Node API | <http://localhost:3001/api/health> |
 | Python 人臉服務（僅本機） | <http://127.0.0.1:5001/health> |
 
 人物頁：<http://localhost:5173/people.html>；管理頁：<http://localhost:5173/admin-people.html>。第一次需要網路安裝 Python 依賴與下載模型，之後沿用本機檔案。不必手動啟用虛擬環境，也不必開三個 Terminal。按 **Ctrl+C** 一起停止；任一服務啟動失敗時，Turborepo 也會停止其他服務並顯示錯誤。
@@ -182,13 +182,13 @@ node dev-server.mjs
 - 賓客大頭貼與自拍搜尋：<http://localhost:5173/people.html>
 - 新人管理與雲端同步：<http://localhost:5173/admin-people.html>
 
-前端 5173、Node API 3000、Python 5001。前端只連 Node API，不直接呼叫 Python。
+前端 5173、Node API 3001、Python 5001。前端只連 Node API，不直接呼叫 Python。
 
-`frontend/config.js` 的 `API_BASE` 空白時，5173 開發模式自動連同主機 3000；正式部署改成你的後端 HTTPS 網址。後端 `.env` 的 `FRONTEND_ORIGINS` 要加入前端完整來源（含協定與連接埠，多個以逗號分隔）。
+`frontend/config.js` 的 `API_BASE` 空白時，5173 開發模式自動連同主機 3001；正式部署改成你的後端 HTTPS 網址。後端 `.env` 的 `FRONTEND_ORIGINS` 要加入前端完整來源（含協定與連接埠，多個以逗號分隔）。
 
 同 Wi-Fi 手機測試，例如前端網址是 `http://192.168.1.23:5173`，需在 `FRONTEND_ORIGINS` 加入該網址並重啟 Node。
 
-為方便你直接測試，Node 預設也提供 `frontend/` 靜態檔，可直接用 3000 開啟以上頁面。若只要 API，把 `.env` 設 `SERVE_FRONTEND=false`。這不影響兩個資料夾的獨立開發。
+為方便你直接測試，Node 預設也提供 `frontend/` 靜態檔，可直接用 3001 開啟以上頁面。若只要 API，把 `.env` 設 `SERVE_FRONTEND=false`。這不影響兩個資料夾的獨立開發。
 
 ## 雲端舊照片怎麼辨識
 
@@ -333,12 +333,12 @@ ID 是網址 `https://drive.google.com/drive/folders/` 後的部分，**不是�
 
 後端固定讀取 `backend/.env`，避免從不同工作目錄執行時讀錯設定。
 
-若仍沒有照片，打開 <http://localhost:3000/api/health>：
+若仍沒有照片，打開 <http://localhost:3001/api/health>：
 
 - `driveEnabled=false`：尚未啟用雲端，將 `backend/.env` 改為 `DRIVE_ENABLED=true` 並重啟。
 - `driveConnectionState=authorizing`：等待 Google 授權完成。
 - `driveConnectionState=failed`：Google 授權失敗，查看 `driveConnectionError`。
 - `backupFailed>0`：管理頁會顯示帳號／寫入權限／資料夾不存在／容量等錯誤。
-- 沒有 `service`、`version`、`driveEnabled`：可能還在啟動舊版後端，確認 3000 的程序並重啟此版 `backend/server.js`。
+- 沒有 `service`、`version`、`driveEnabled`：可能還在啟動舊版後端，確認 3001 的程序並重啟此版 `backend/server.js`。
 
 Google 授權失效時，先停止 Node，將 `backend/token.json` 改名保留備份，再啟動 Node、用有資料夾寫入權限的 Google 帳號重新授權。不要公開或貼出 credentials.json、token.json 的內容。

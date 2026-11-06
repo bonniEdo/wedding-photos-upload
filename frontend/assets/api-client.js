@@ -1,6 +1,6 @@
 (function(){
   const configured=(window.WEDDING_CONFIG?.API_BASE||'').replace(/\/$/,'');
-  const base=configured||(location.port==='5173'?`${location.protocol}//${location.hostname}:3000`:'');
+  const base=configured||(location.port==='5173'?`${location.protocol}//${location.hostname}:3001`:'');
   let adminToken=null;
   function url(p){return /^https?:\/\//.test(p)?p:base+p;}
   function request(p,options={}){

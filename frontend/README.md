@@ -10,7 +10,7 @@
 node dev-server.mjs
 ```
 
-開啟 `http://localhost:5173`。後端需啟動 3000；可從根目錄 `API.md` 查看串接規格。
+開啟 `http://localhost:5173`。後端需啟動 3001；可從根目錄 `API.md` 查看串接規格。
 
 - `photos.html`：照片上傳。
 - `invitation.html`：溫馨風格電子喜帖、婚宴資訊與出席回覆。

@@ -132,7 +132,7 @@ def backfill_original(photo_id):
     from urllib.request import Request, urlopen
     from urllib.parse import urlparse
     from urllib.error import HTTPError, URLError
-    base=os.environ.get('FACE_BACKFILL_SOURCE_URL','http://127.0.0.1:'+os.environ.get('PORT','3000')).rstrip('/')
+    base=os.environ.get('FACE_BACKFILL_SOURCE_URL','http://127.0.0.1:'+os.environ.get('PORT','3001')).rstrip('/')
     parsed=urlparse(base)
     if parsed.scheme not in ('http','https') or parsed.hostname not in ('localhost','127.0.0.1','::1') or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise OriginalError('unavailable','回填來源必須是本機 Node 服務')

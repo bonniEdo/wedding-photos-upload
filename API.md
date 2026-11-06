@@ -1,6 +1,6 @@
 # 前端 API 規格（給男友）
 
-前端放 `frontend/`；Node API 開發地址 `http://localhost:3000`。Python 是內部服務，前端不呼叫 5001。可用任何前端框架換畫面，只需保留以下 API 互動。
+前端放 `frontend/`；Node API 開發地址 `http://localhost:3001`。Python 是內部服務，前端不呼叫 5001。可用任何前端框架換畫面，只需保留以下 API 互動。
 
 ## 基本約定
 
@@ -247,7 +247,7 @@ Google Drive 匯入依官方 files.list 分頁及 files.get `alt=media` 下載�
 
 ## 電子喜帖回覆
 
-喜帖預設 `submissionMode:'google-form'`，由瀏覽器原生表單提交至 Google，**不呼叫以下 API**。以下為選用 `submissionMode:'backend'` 時保留的回覆與照片留存介面。兩種模式共用 `frontend/assets/invitation-google-form.js` 中的 Google 欄位定義。
+喜帖預設 `submissionMode:'google-form'`，由瀏覽器原生表單提交至 Google，**不呼叫以下 API**。以下為選用 `submissionMode:'backend'` 時保留的回覆與照片留存介面。兩種模式共用 `docs/assets/invitation-google-form.js` 中的 Google 欄位定義。
 
 `POST /api/invitations/rsvp`，使用 `multipart/form-data`；沿用 `frontend/assets/api-client.js` 的後端網址與 CORS 設定。
 
